@@ -24,23 +24,27 @@
 `timescale 1ps / 1ps
 
 //-------------------------------------------------------------
+// Top level test bench for usbModel
 //-------------------------------------------------------------
+
 module test
 #(parameter CLK_PERIOD_MHZ = 12,
   parameter TIMEOUT_US     = 1000,
   parameter GUI_RUN        = 0
 );
 
-localparam CLK_PERIOD_PS    = 1000000 / CLK_PERIOD_MHZ;
-localparam TIMEOUT_COUNT    = CLK_PERIOD_MHZ * TIMEOUT_US;
+// Derive some useful local parameters
+localparam CLK_PERIOD_PS   = 1000000 / CLK_PERIOD_MHZ;
+localparam TIMEOUT_COUNT   = CLK_PERIOD_MHZ * TIMEOUT_US;
 
 reg     clk;
 integer count;
 wire    d[1:0];
 
-
+// Generate an active low reset
 wire    nreset = (count >= 10) ? 1'b1 : 1'b0;
 
+// Initialise state and generate a clock
 initial
 begin
     clk = 1;
@@ -50,6 +54,7 @@ begin
     forever # (CLK_PERIOD_PS/2) clk = ~clk;
 end
 
+// Keep a clock count and monitor for a timeout
 always @(posedge clk)
 begin
   count = count + 1;
@@ -63,7 +68,7 @@ end
   // ----------------------------
   // USB host
   // ----------------------------
-  usb  #(
+  usbModel  #(
         .DEVICE     (0),
         .FULLSPEED  (1),
         .NODENUM    (0),
@@ -81,7 +86,7 @@ end
   // ----------------------------
   // USB device
   // ----------------------------
-  usb  #(
+  usbModel  #(
         .DEVICE     (1),
         .FULLSPEED  (1),
         .NODENUM    (1),

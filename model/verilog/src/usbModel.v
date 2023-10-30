@@ -22,7 +22,7 @@
 
 `timescale 1 ns / 1 ps
 
-`include "usb.vh"
+`include "usbModel.vh"
 
 module usbModel
            #(parameter DEVICE    = 1,

@@ -41,6 +41,7 @@ static usbPliApi::usb_signal_t nrzi[usbPliApi::MAXBUFSIZE];
 
 extern "C" void VUserMain1()
 {
+    int                  error = 0;
     int                  numbits;
     int                  bitcount;
     int                  pid;
@@ -48,11 +49,15 @@ extern "C" void VUserMain1()
     uint8_t              rxdata[4096];
     int                  databytes;
     usbPkt::usb_signal_t nrzi[usbPkt::MAXBUFSIZE];
-    char sbuf[1024];
-    
+    char                 sbuf[1024];
+
+    // Create interface object to usbModel
     usbPliApi            usbapi(node);
 
-    // Wait for SETUP
+    // Wait for reset to be deasserted
+    usbapi.waitOnNotReset();
+
+    // Wait for a SETUP token
     bitcount = usbapi.waitForPkt(nrzi);
 
     if (usbapi.decodePkt(nrzi, pid, args, rxdata, databytes) != usbPkt::USBOK)
@@ -60,27 +65,31 @@ extern "C" void VUserMain1()
         fprintf(stderr, "***ERROR: VUserMain1: received bad packet\n");
         usbapi.getUsbErrMsg(sbuf);
         fprintf(stderr, "%s\n", sbuf);
+        error = 1;
     }
-    
-    usbapi.SendIdle(1);
-    
-    // Wait for DATA
-    bitcount = usbapi.waitForPkt(nrzi);
- 
-    if (usbapi.decodePkt(nrzi, pid, args, rxdata, databytes) != usbPkt::USBOK)
+    else
     {
-        fprintf(stderr, "***ERROR: VUserMain1: received bad packet\n");
-        usbapi.getUsbErrMsg(sbuf);
-        fprintf(stderr, "%s\n", sbuf);
+
+        usbapi.SendIdle(1);
+
+        // Wait for DATA
+        bitcount = usbapi.waitForPkt(nrzi);
+
+        if (usbapi.decodePkt(nrzi, pid, args, rxdata, databytes) != usbPkt::USBOK)
+        {
+            fprintf(stderr, "***ERROR: VUserMain1: received bad packet\n");
+            usbapi.getUsbErrMsg(sbuf);
+            fprintf(stderr, "%s\n", sbuf);
+            error = 1;
+        }
+            
+        usbapi.SendIdle(10);
+
+        // Send an acknowledgement handshake
+        numbits = usbapi.genPkt(nrzi, error ? usbPliApi::PID_HSHK_NAK : usbPliApi::PID_HSHK_ACK);
+        usbapi.SendPacket(nrzi, numbits);
     }
-    
-    usbapi.SendIdle(10);
-    
-    // Send an ACK
-    numbits = usbapi.genPkt(nrzi, usbPliApi::PID_HSHK_ACK);
-    
-    usbapi.SendPacket(nrzi, numbits);
-    
+
 
     usbapi.SendIdle(0);
 

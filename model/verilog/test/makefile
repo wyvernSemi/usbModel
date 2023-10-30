@@ -20,7 +20,7 @@
 #
 ###################################################################
 
-# MODEL_TECH environment variable must be set for pointing to 
+# MODEL_TECH environment variable must be set for pointing to
 # modelsim.ini file and binary dierctory respectively
 
 NUM_VPROC     = 2
@@ -29,7 +29,7 @@ NUM_VPROC     = 2
 # Update if relocated.
 VPROC_TOP     = ../../../../vproc
 
-# Define the github repository URL for the VProc virtual processor 
+# Define the github repository URL for the VProc virtual processor
 VPROC_REPO    = https://github.com/wyvernSemi/vproc.git
 
 #
@@ -40,17 +40,25 @@ SRCDIR        = ../../src
 USRCDIR       = usercode
 WORKDIR       = work
 
+#
+# PLI C/C++ code definitions
+#
 PLI_SO        = VProc.so
-
-USER_CPP      = VUserMain0.cpp VUserMain1.cpp veriuser.cpp
+VPROC_LIB     = libvproc.a
+VPROCLIBPATH  = ${VPROC_TOP}/${VPROC_LIB}
 
 #
-# Flags for ModelSim
+# Test c++ code
+#
+USER_CPP      = VUserMain0.cpp                   \
+                VUserMain1.cpp                   \
+                veriuser.cpp
+
+#
+# Flags for simulator
 #
 TOP           = test
 TOP_VC        = test.vc
-HDRDIR        = ../headers
-
 VSIMFLAGS     = -pli ${PLI_SO} ${TOP}
 VLOGFLAGS     = -quiet -incr +incdir+${VPROC_TOP} +incdir+${USBVLOGDIR} -f ${TOP_VC}
 
@@ -64,7 +72,6 @@ CFLAGS        = ${ARCH} -fPIC                    \
                 -Wno-write-strings               \
                 -I${SRCDIR}                      \
                 -I${USRCDIR}                     \
-                -I${HDRDIR}                      \
                 -I${VPROC_TOP}/code              \
                 -I${MODEL_TECH}/../include       \
                 -DMODELSIM                       \
@@ -76,11 +83,12 @@ OSTYPE       :=$(shell uname)
 # Set OS specific variables between Linux and Windows (MinGW)
 ifeq (${OSTYPE}, Linux)
   CFLAGS_SO   = -shared -lpthread -lrt -rdynamic
-  CPPSTD      = -std=c++11
 else
   CFLAGS_SO   = -shared -Wl,-export-all-symbols
-  CPPSTD      = -std=c+11
 endif
+
+# C++ compilation standard
+CPPSTD        = -std=c+11
 
 #------------------------------------------------------
 # BUILD RULES
@@ -89,7 +97,7 @@ endif
 #
 # Build the verilog and the PLI shared object by default
 #
-all: ${VPROC_SO} verilog
+all: ${PLI_SO} verilog
 
 #
 # Verilog. Phony target
@@ -106,23 +114,21 @@ verilog:
 #
 # PLI shared object
 #
-${PLI_SO}: vproc_lib ${SRCDIR}/*.cpp ${USER_CPP:%.cpp=${USRCDIR}/%.cpp}
+${PLI_SO}: ${VPROCLIBPATH} ${SRCDIR}/*.cpp ${USER_CPP:%.cpp=${USRCDIR}/%.cpp}
 	@${C++} ${CFLAGS_SO} ${CFLAGS}               \
 	       -Wl,-whole-archive                    \
- 	       ${USER_CPP:%.cpp=${USRCDIR}/%.cpp}    \
- 	       ${SRCDIR}/*.cpp                       \
+ 	       $^                                    \
            -lpthread                             \
            -L${MODEL_TECH}                       \
            -lmtipli                              \
-	       -L${VPROC_TOP}     -lvproc            \
 	       -Wl,-no-whole-archive                 \
 	       -o $@
 
 #
 # VProc library.
 #
-vproc_lib: ${VPROC_TOP}
-	@${MAKE} -C ${VPROC_TOP} MAX_NUM_VPROC=${NUM_VPROC} USER_C=""
+${VPROCLIBPATH}: ${VPROC_TOP}
+	@${MAKE} --no-print-directory -C ${VPROC_TOP} MAX_NUM_VPROC=${NUM_VPROC} USER_C="" ${VPROC_LIB}
 
 #
 # Checkout VProc from github if it doesn't exist at the specified location
@@ -134,10 +140,10 @@ ${VPROC_TOP}:
 # EXECUTION RULES
 #------------------------------------------------------
 
-run: vproc_lib verilog ${PLI_SO}
+run: ${VPROCLIBPATH} verilog ${PLI_SO}
 	@vsim -c ${VSIMFLAGS} -do "run -all"
 
-rungui: vproc_lib verilog ${PLI_SO}
+rungui: ${VPROCLIBPATH} verilog ${PLI_SO}
 	@if [ -e wave.do ]; then                                                \
          vsim -gui -GGUI_RUN=1 -do wave.do ${VSIMFLAGS} -do "run -all";     \
      else                                                                   \
@@ -154,7 +160,7 @@ clean:
 	@if [ -d "${WORKDIR}" ]; then                \
 	  vdel -all;                                 \
      fi
-	@${MAKE} -C ${VPROC_TOP}     clean
-	@rm -rf ${PLI_SO} *.wlf transcript
+	@${MAKE} --no-print-directory -C ${VPROC_TOP}     clean
+	@rm -rf ${PLI_SO} *.wlf transcript work
 
 

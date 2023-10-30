@@ -183,11 +183,11 @@ public:
 
     void waitOnNotReset(void)
     {
-        unsigned nreset;
+        unsigned reset;
 
         do {
-            VRead(RESET_STATE, &nreset, ADVANCE_TIME, node);
-        } while (!nreset);
+            VRead(RESET_STATE, &reset, ADVANCE_TIME, node);
+        } while (reset);
     }
 
     //-------------------------------------------------------------
