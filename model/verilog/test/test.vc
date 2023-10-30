@@ -1,0 +1,10 @@
+
+// USB
+../src/usb.v
+
+// VProc
+../../../../VProc/extradefs.v
+../../../../VProc/f_VProc.v
+
+// Top level test module
+test.v
