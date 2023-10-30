@@ -24,16 +24,19 @@
 
 `include "usb.vh"
 
-module usb #(parameter DEVICE    = 1,
+module usbModel
+           #(parameter DEVICE    = 1,
              parameter FULLSPEED = 1,
              parameter NODENUM   = 0,
-             parameter GUI_RUN   = 0)
-           (input clk,
-            input nreset,
+             parameter GUI_RUN   = 0
+            )
+            (
+             input clk,
+             input nreset,
            
-            inout linep,
-            inout linem);
-
+             inout linep,
+             inout linem
+            );
 
 reg          oen;
 reg          nopullup;
@@ -70,12 +73,12 @@ end
 // after chirp negotiation and switch to HS, to balance line.
 
 // Device side pullup control
-assign (pull1, highz0) linep = DEVICE & (FULLSPEED  & !nopullup);
-assign (pull1, highz0) linem = DEVICE & (!FULLSPEED & !nopullup);
+assign (pull1, highz0) linep   = DEVICE & (FULLSPEED  & !nopullup);
+assign (pull1, highz0) linem   = DEVICE & (!FULLSPEED & !nopullup);
 
 // Host side pull down resistor control
-assign (highz1, weak0)   linep = DEVICE | (nopullup);
-assign (highz1, weak0)   linem = DEVICE | (nopullup);
+assign (highz1, weak0) linep   = DEVICE | (nopullup);
+assign (highz1, weak0) linem   = DEVICE | (nopullup);
 
 wire doen;
 
@@ -88,72 +91,79 @@ assign linem                   = (doen & oen) ? dm : 1'bZ;
  // --------------------------------
  // Virtual Processor
  // --------------------------------
- VProc vp (.Clk            (clk), 
-           .Addr           (addr), 
-           .WE             (wr), 
-           .RD             (rd), 
-           .DataOut        (wdata), 
-           .DataIn         (rdata), 
-           .WRAck          (wack), 
-           .RDAck          (rack), 
-           .Interrupt      (3'b000), 
-           .Update         (update), 
-           .UpdateResponse (updateresp), 
-           .Node           (node[3:0])
+ VProc vp (.Clk                (clk), 
+           .Addr               (addr), 
+           .WE                 (wr), 
+           .RD                 (rd), 
+           .DataOut            (wdata), 
+           .DataIn             (rdata), 
+           .WRAck              (wack), 
+           .RDAck              (rack), 
+           .Interrupt          (3'b000), 
+           .Update             (update), 
+           .UpdateResponse     (updateresp), 
+           .Node               (node[3:0])
            );
 
+// Keep a clock tick count
 always @(posedge clk)
 begin
     clkcount     <= clkcount + 1;
 end
 
+// Addressable read/write state from VProc
 always @(update)
 begin
-    rdata = 32'h00000000;
+  // Default read data value
+  rdata                        = 32'h00000000;
+  
+  if (wr === 1'b1 || rd === 1'b1)
+  begin
+    case(addr)
+    `NODE_NUM:    rdata        = node;
+    `CLKCOUNT:    rdata        = clkcount;
+    `RESET_STATE: rdata        = {31'h0000, ~nreset};
     
-    if (wr === 1'b1 || rd === 1'b1)
+    `PULLUP:
     begin
-        case(addr)
-        `NODE_NUM:    rdata  = node;
-        `CLKCOUNT:    rdata  = clkcount;
-        `RESET_STATE: rdata  = {31'h0000, ~nreset};
-        
-        `PULLUP:
-        begin
-          if (wr === 1'b1)
-            nopullup = ~wdata[0];
-          rdata = {31'h0000, nopullup};
-        end
-        
-        `OUTEN:
-        begin
-          if (wr === 1'b1)
-            oen = wdata[0];
-          rdata = {31'h0000, oen};
-        end
-        
-        `LINE:
-        begin
-          if (wr === 1'b1)
-          begin            
-               dp = wdata[0];
-               dm = wdata[1];
-          end
-          rdata  = {30'h0000, linem, linep};
-        end
-
-        `UVH_STOP:    if (wr === 1'b1) $stop;
-        `UVH_FINISH:  if (wr === 1'b1) if (GUI_RUN) $stop; else $finish;
-        
-        default:
-        begin
-            $display("%m: ***Error. USBVhost---access to invalid address (%h) from VProc", addr);
-            $stop;
-        end
-        endcase
+      if (wr === 1'b1)
+        nopullup               = ~wdata[0];
+      rdata                    = {31'h0000, nopullup};
+    end
+    
+    `OUTEN:
+    begin
+      if (wr === 1'b1)
+        oen                    = wdata[0];
+      rdata                    = {31'h0000, oen};
+    end
+    
+    `LINE:
+    begin
+      if (wr === 1'b1)
+      begin            
+           dp                  = wdata[0];
+           dm                  = wdata[1];
+      end
+      rdata                    = {30'h0000, linem, linep};
     end
 
-    // Finished processing, so flag to VProc
+    `UVH_STOP:
+      if (wr === 1'b1) $stop;
+      
+    `UVH_FINISH:
+      // Always stop when in GUI
+      if (wr === 1'b1) if (GUI_RUN) $stop; else $finish;
+    
+    default:
+    begin
+        $display("%m: ***Error. usbModel---access to invalid address (%h) from VProc", addr);
+        $stop;
+    end
+    endcase
+  end
+
+    // Finished processing for this update, so acknowledge to VProc (invert updateresp)
     updateresp = ~updateresp;
 end
 
