@@ -153,12 +153,12 @@ begin
       
     `UVH_FINISH:
       // Always stop when in GUI
-      if (wr === 1'b1) if (GUI_RUN) $stop; else $finish;
+      if (wr === 1'b1) if (GUI_RUN==1) $stop; else $finish;
     
     default:
     begin
         $display("%m: ***Error. usbModel---access to invalid address (%h) from VProc", addr);
-        $stop;
+        if (GUI_RUN==1) $stop; else $finish;
     end
     endcase
   end

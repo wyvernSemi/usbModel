@@ -28,7 +28,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "usbPliApi.h"
+//#include "usbPliApi.h"
+#include "usbDevice.h"
 
 static int node = 1;
 
@@ -41,6 +42,23 @@ static usbPliApi::usb_signal_t nrzi[usbPliApi::MAXBUFSIZE];
 
 extern "C" void VUserMain1()
 {
+    char                 sbuf[1024];
+
+    usbDevice dev(node);
+
+    dev.waitOnNotReset();
+
+    if (dev.runUsbDevice() != usbPkt::USBOK)
+    {
+        fprintf(stderr, "***ERROR: VUserMain1: runUsbDevice returned bad status\n");
+        dev.getUsbErrMsg(sbuf);
+        fprintf(stderr, "%s\n", sbuf);
+    }
+
+
+    dev.SendIdle(0);
+
+    /*
     int                  error = 0;
     int                  numbits;
     int                  bitcount;
@@ -52,7 +70,7 @@ extern "C" void VUserMain1()
     char                 sbuf[1024];
 
     // Create interface object to usbModel
-    usbPliApi            usbapi(node);
+    usbPliApi           usbapi (node, std::string("ENDP"));
 
     // Wait for reset to be deasserted
     usbapi.waitOnNotReset();
@@ -82,7 +100,7 @@ extern "C" void VUserMain1()
             fprintf(stderr, "%s\n", sbuf);
             error = 1;
         }
-            
+
         usbapi.SendIdle(10);
 
         // Send an acknowledgement handshake
@@ -92,6 +110,7 @@ extern "C" void VUserMain1()
 
 
     usbapi.SendIdle(0);
+    */
 
 }
 

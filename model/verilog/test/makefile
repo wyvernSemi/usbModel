@@ -21,7 +21,13 @@
 ###################################################################
 
 # MODEL_TECH environment variable must be set for pointing to
-# modelsim.ini file and binary dierctory respectively
+# modelsim.ini file and binary directory respectively
+
+#
+# User modifiable flags
+#
+USRFLAGS      = -DUSBTESTMODE
+ARCH          = -m32
 
 NUM_VPROC     = 2
 
@@ -67,15 +73,13 @@ VLOGFLAGS     = -quiet -incr +incdir+${VPROC_TOP} +incdir+${USBVLOGDIR} -f ${TOP
 #
 CC            = gcc
 C++           = g++
-ARCH          = -m32
 CFLAGS        = ${ARCH} -fPIC                    \
                 -Wno-write-strings               \
                 -I${SRCDIR}                      \
                 -I${USRCDIR}                     \
                 -I${VPROC_TOP}/code              \
                 -I${MODEL_TECH}/../include       \
-                -DMODELSIM                       \
-                -D_REENTRANT
+                ${USRFLAGS}
 
 # Get OS type
 OSTYPE       :=$(shell uname)
@@ -141,7 +145,7 @@ ${VPROC_TOP}:
 #------------------------------------------------------
 
 run: ${VPROCLIBPATH} verilog ${PLI_SO}
-	@vsim -c ${VSIMFLAGS} -do "run -all"
+	@vsim -c -GGUI_RUN=0 ${VSIMFLAGS} -do "run -all"
 
 rungui: ${VPROCLIBPATH} verilog ${PLI_SO}
 	@if [ -e wave.do ]; then                                                \

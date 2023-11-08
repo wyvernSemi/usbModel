@@ -1,5 +1,5 @@
 //=============================================================
-// 
+//
 // Copyright (c) 2023 Simon Southwell. All rights reserved.
 //
 // Date: 19th October 2023
@@ -40,13 +40,21 @@ private:
 
     static const int IDLE_FOREVER = 0;
     static const int ADVANCE_TIME = 0;
+    
+#ifndef USBTESTMODE
+    static const int MINRSTCOUNT     = 120000;  // 10ms for fullspeed device
+    static const int MINSUSPENDCOUNT = 36000;   // 3ms for fullspeed device
+#else
+    static const int MINRSTCOUNT     = 256;
+    static const int MINSUSPENDCOUNT = 1000;
+#endif
 
 public:
 
     //-------------------------------------------------------------
     //-------------------------------------------------------------
 
-    usbPliApi(const int nodeIn) : node(nodeIn)
+    usbPliApi(const int nodeIn, std::string name = std::string("ENDP")) : node(nodeIn), usbPkt(name)
     {
     }
 
@@ -97,8 +105,13 @@ public:
     //-------------------------------------------------------------
     //-------------------------------------------------------------
 
-    void SendPacket(const usbPkt::usb_signal_t nrzi[], const int bitlen)
+    void SendPacket(const usbPkt::usb_signal_t nrzi[], const int bitlen, const int delay = 100)
     {
+        if (delay > 0)
+        {
+            SendIdle(delay);
+        }
+        
         // Enable outputs
         VWrite(OUTEN, 1, DELTA_CYCLE, node);
 
@@ -129,36 +142,96 @@ public:
     }
 
     //-------------------------------------------------------------
+    // waitForPkt()
+    //
+    // Monitors the USB line for a new packet and saves the raw
+    // NRZI data into the provided buffer, returning the bit count
+    // of the extracted packet. Will also detect a reset state on
+    // the line (continuous SE0s for a minimum period), and flag to
+    // the calling code.
+    //
     //-------------------------------------------------------------
+    
     int waitForPkt(usb_signal_t nrzi[])
     {
         unsigned     line;
-        bool         idle      = true;
-        int          eop_count = 0;
-        int          bitcount  = 0;
+        bool         idle         = true;
+        bool         lookforreset = false;
+        int          rstcount     = 0;
+        int          idlecount    = 0;
+        int          eop_count    = 0;
+        int          bitcount     = 0;
 
         // Disable outputs
         VWrite(OUTEN, 0, DELTA_CYCLE, node);
 
         do {
+            // Get status on USB line
             line = readLineState();
+            
+            // If anything other than a J (when already idle) come out of suspend
+            if (suspended && (line == USB_K || line == USB_SE0))
+            {
+                USBDISPPKT("Device activated from suspension\n");
+                suspended = false;
+            }
 
-            if (line == USB_K)
+            // If not in the middle of a reset detection and K seen, then line is not idle
+            if (!lookforreset && line == USB_K)
+            {
                 idle = false;
+            }
+            // If idle and an SE0 seem then this may be a reset
+            else if (idle && line == USB_SE0)
+            {
+                lookforreset = true;
+                rstcount++;
+            }
 
+            // If in the middle of a potential reset, keep track of the number of consecutive SE0 line states
+            if (lookforreset)
+            {
+                // Another SE0 increments the count
+                if (line == USB_SE0)
+                {
+                    rstcount++;
+                }
+                // When a non-SE0 state occurs, return the status to the calling method
+                else
+                {
+                    // The return status is reset if seen sufficient consecutive SE0s,
+                    // else flag an error.
+                    rstcount = 0;
+                    
+                    if (rstcount >= MINRSTCOUNT)
+                    {
+                        USBDISPPKT("Device reset\n");
+                        return USBRESET;
+                    }
+                    
+                    lookforreset = false;
+                    idle         = (line == USB_K) ? false : true;
+                }
+            }
+
+            // If not idle, then process the packet data
             if (!idle)
             {
-                //fprintf(stderr, "%c", (line == USB_K) ? 'K' : (line == USB_J) ? 'J' : (line == USB_SE0) ? '0' : 'X');
-
+                idlecount = 0;
+                
+                // At each byte boundary, clear the new byte buffer entry
                 if (!(bitcount%8))
                 {
                     nrzi[bitcount/8].dp = nrzi[bitcount/8].dm = 0;
                 }
 
+                // Add the line values to the buffer entries and increment the packet bit count
                 nrzi[bitcount/8].dp |= (line        & 0x1) << bitcount%8;
                 nrzi[bitcount/8].dm |= ((line >> 1) & 0x1) << bitcount%8;
                 bitcount++;
 
+                // If not yet seen an SE0, the keep a bit count for 3 bits for EOP
+                // (the decoding of the packet will detect any correupt EOP)
                 if (!eop_count && line == USB_SE0)
                 {
                     eop_count++;
@@ -167,14 +240,25 @@ public:
                 {
                     eop_count++;
 
+                    // After 3 bits of EOP break out of the loop.
                     if (eop_count == 3)
                     {
                         break;
                     }
                 }
             }
+            else
+            {
+                if (++idlecount >= MINSUSPENDCOUNT)
+                {
+                    USBDISPPKT("Device suspended\n");
+                    suspended = true;
+                    return USBSUSPEND;
+                }
+            }
         } while (true);
 
+        // Return the bitcount of the packet
         return bitcount;
     }
 
@@ -205,11 +289,21 @@ public:
     {
         VWrite(PULLUP, 0, ADVANCE_TIME, node);
     }
+    
+    //-------------------------------------------------------------
+    //-------------------------------------------------------------
+    
+    void reset()
+    {
+        usbPkt::reset();
+        suspended = false;
+    }
 
 
 private:
 
-    int node;
+    int  node;
+    bool suspended;
 
 };
 

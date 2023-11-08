@@ -372,7 +372,7 @@ int usbPkt::genPkt(usb_signal_t buf[], const int pid, const uint8_t addr, const 
     // Validate the endpoint
     if (endp > MAXENDP)
     {
-        USBERRMSG("genPkt: Invalid token end poubt (0x%x\n", endp);
+        USBERRMSG("genPkt: Invalid token end point (0x%x\n", endp);
         return USBERROR;
     }
 
@@ -572,16 +572,16 @@ int usbPkt::decodePkt(const usb_signal_t nrzibuf[], int& pid, uint32_t args[], u
     switch (pid)
     {
     case PID_HSHK_ACK:
-        USBDISPPKT("  RX HNDSHK: ACK\n");
+        USBDISPPKT("  %s RX HNDSHK:  ACK\n", name.c_str());
         break;
     case PID_HSHK_NAK:
-        USBDISPPKT("  RX HNDSHK: NAK\n");
+        USBDISPPKT("  %s RX HNDSHK:  NAK\n", name.c_str());
         break;
     case PID_HSHK_STALL:
-        USBDISPPKT("  RX HNDSHK: STALL\n");
+        USBDISPPKT("  %s RX HNDSHK:  STALL\n", name.c_str());
         break;
     case PID_HSHK_NYET:
-        USBDISPPKT("  RX HNDSHK: NYET\n");
+        USBDISPPKT("  %s RX HNDSHK:  NYET\n", name.c_str());
         break;
 
     case PID_TOKEN_OUT:
@@ -595,20 +595,24 @@ int usbPkt::decodePkt(const usb_signal_t nrzibuf[], int& pid, uint32_t args[], u
 
         if (args[ARGTKNCRC5IDX] != crc)
         {
-            USBERRMSG("decodePkt: Bad CRC5 for token. Got 0x%x, expected 0x%x.\n", args[ARGTKNCRC5IDX], crc);
+            USBERRMSG("decodePkt: Bad CRC5 for token. Got 0x%x, expected 0x%x.\n",
+                args[ARGTKNCRC5IDX], crc);
             return USBERROR;
         }
         else if (pid == PID_TOKEN_OUT)
         {
-            USBDISPPKT("  RX TOKEN: OUT   (ADDR=%d ENDP=%d)\n", args[ARGADDRIDX], args[ARGENDPIDX]);
+            USBDISPPKT("  %s RX TOKEN:   OUT\n    " FMT_DATA_GREY "addr=%d endp=%d" FMT_NORMAL "\n",
+                name.c_str(), args[ARGADDRIDX], args[ARGENDPIDX]);
         }
         else if (pid == PID_TOKEN_IN)
         {
-            USBDISPPKT("  RX TOKEN: IN    (ADDR=%d ENDP=%d)\n", args[ARGADDRIDX], args[ARGENDPIDX]);
+            USBDISPPKT("  %s RX TOKEN:   IN\n    " FMT_DATA_GREY "addr=%d endp=%d" FMT_NORMAL "\n",
+                name.c_str(), args[ARGADDRIDX], args[ARGENDPIDX]);
         }
         else
         {
-            USBDISPPKT("  RX TOKEN: SETUP (ADDR=%d ENDP=%d)\n", args[ARGADDRIDX], args[ARGENDPIDX]);
+            USBDISPPKT("  %s RX TOKEN:   SETUP\n    " FMT_DATA_GREY "addr=%d endp=%d" FMT_NORMAL "\n",
+                name.c_str(), args[ARGADDRIDX], args[ARGENDPIDX]);
         }
         break;
 
@@ -624,7 +628,8 @@ int usbPkt::decodePkt(const usb_signal_t nrzibuf[], int& pid, uint32_t args[], u
             return USBERROR;
         }
 
-        USBDISPPKT("  RX TOKEN: SOF   (FRAME= %d)\n", args[ARGFRAMEIDX]);
+        USBDISPPKT("  %s RX TOKEN:   SOF\n    " FMT_DATA_GREY "frame= %d" FMT_NORMAL "\n",
+            name.c_str(), args[ARGFRAMEIDX]);
 
         break;
 
@@ -647,7 +652,7 @@ int usbPkt::decodePkt(const usb_signal_t nrzibuf[], int& pid, uint32_t args[], u
         }
 
         // Copy validated memory to output buffer
-        USBDISPPKT("  RX DATA: %s:", pid == PID_DATA_0 ? "DATA0" : "DATA1");
+        USBDISPPKT("  %s RX DATA:    %s:", name.c_str(), pid == PID_DATA_0 ? "DATA0" : "DATA1");
 
         for (int idx = 0; idx < databytes; idx++)
         {
@@ -655,14 +660,18 @@ int usbPkt::decodePkt(const usb_signal_t nrzibuf[], int& pid, uint32_t args[], u
 
             if ((idx % 16) == 0)
             {
-                USBDISPPKT("\n   ");
+                USBDISPPKT(FMT_DATA_GREY "\n   ");
             }
             USBDISPPKT(" %02x", data[idx]);
         }
 
         if (databytes % 16)
         {
-            USBDISPPKT("\n");
+            USBDISPPKT(FMT_NORMAL "\n");
+        }
+        else
+        {
+            USBDISPPKT(FMT_NORMAL);
         }
 
         break;

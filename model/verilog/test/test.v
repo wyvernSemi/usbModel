@@ -61,7 +61,7 @@ begin
   if (count >= TIMEOUT_COUNT)
   begin
     $display("***ERROR: simulation timed out");
-    $stop;
+    if (GUI_RUN==1) $stop; else $finish;
   end
 end
 
