@@ -11,12 +11,16 @@ radix define vpaddr {
     -default hexadecimal
 }
 radix define usbline {
-    "2'b00" "SE0" -color #ffff80,
-    "2'b01" "J" -color #00ffff,
-    "2'b10" "K" -color #80ff80,
-    "2'b11" "SE1" - color red,
-    "2'bxx" " " -color "grey",
-    -default hexadecimal
+    "2'b00" "SE0" -color "#ffff80",
+    "2'b01" "J" -color "#00ffff",
+    "2'b10" "K" -color "#80ff80",
+    "2'b11" "SE1",
+    "-" "color",
+    "red" "2'bxx",
+    " " "-color",
+    "grey" "-default",
+    "hexadecimal" "",
+    -default default
 }
 quietly virtual signal -install /test/dev_i { (concat_range (0 to 1) )( (context /test/dev_i )&{linem , linep } )} line
 quietly virtual signal -install /test/host_i { (concat_range (0 to 1) )( (context /test/host_i )&{linem , linep } )} line
@@ -91,4 +95,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ns
 update
-WaveRestoreZoom {0 ps} {29312241 ps}
+WaveRestoreZoom {0 ps} {53549353 ps}

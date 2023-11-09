@@ -40,7 +40,8 @@ private:
 
     static const int IDLE_FOREVER = 0;
     static const int ADVANCE_TIME = 0;
-    
+    static const int MINIMUMIDLE  = 1;
+
 #ifndef USBTESTMODE
     static const int MINRSTCOUNT     = 120000;  // 10ms for fullspeed device
     static const int MINSUSPENDCOUNT = 36000;   // 3ms for fullspeed device
@@ -105,13 +106,17 @@ public:
     //-------------------------------------------------------------
     //-------------------------------------------------------------
 
-    void SendPacket(const usbPkt::usb_signal_t nrzi[], const int bitlen, const int delay = 100)
+    void SendPacket(const usbPkt::usb_signal_t nrzi[], const int bitlen, const int delay = 50)
     {
-        if (delay > 0)
+        if (delay >= MINIMUMIDLE)
         {
             SendIdle(delay);
         }
-        
+        else
+        {
+            SendIdle(MINIMUMIDLE);
+        }
+
         // Enable outputs
         VWrite(OUTEN, 1, DELTA_CYCLE, node);
 
@@ -151,7 +156,7 @@ public:
     // the calling code.
     //
     //-------------------------------------------------------------
-    
+
     int waitForPkt(usb_signal_t nrzi[])
     {
         unsigned     line;
@@ -168,7 +173,7 @@ public:
         do {
             // Get status on USB line
             line = readLineState();
-            
+
             // If anything other than a J (when already idle) come out of suspend
             if (suspended && (line == USB_K || line == USB_SE0))
             {
@@ -202,13 +207,13 @@ public:
                     // The return status is reset if seen sufficient consecutive SE0s,
                     // else flag an error.
                     rstcount = 0;
-                    
+
                     if (rstcount >= MINRSTCOUNT)
                     {
                         USBDISPPKT("Device reset\n");
                         return USBRESET;
                     }
-                    
+
                     lookforreset = false;
                     idle         = (line == USB_K) ? false : true;
                 }
@@ -218,7 +223,7 @@ public:
             if (!idle)
             {
                 idlecount = 0;
-                
+
                 // At each byte boundary, clear the new byte buffer entry
                 if (!(bitcount%8))
                 {
@@ -289,16 +294,23 @@ public:
     {
         VWrite(PULLUP, 0, ADVANCE_TIME, node);
     }
-    
+
     //-------------------------------------------------------------
     //-------------------------------------------------------------
-    
+
     void reset()
     {
         usbPkt::reset();
         suspended = false;
     }
 
+    //-------------------------------------------------------------
+    //-------------------------------------------------------------
+
+    void haltSimulation()
+    {
+        VWrite(UVH_FINISH, 0, 0, node);
+    }
 
 private:
 

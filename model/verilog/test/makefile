@@ -39,7 +39,7 @@ VPROC_TOP     = ../../../../vproc
 VPROC_REPO    = https://github.com/wyvernSemi/vproc.git
 
 #
-# USB VHost test defintions
+# USB VHost test definitions
 #
 USBVLOGDIR    = ../src
 SRCDIR        = ../../src
@@ -59,6 +59,11 @@ VPROCLIBPATH  = ${VPROC_TOP}/${VPROC_LIB}
 USER_CPP      = VUserMain0.cpp                   \
                 VUserMain1.cpp                   \
                 veriuser.cpp
+
+#
+# All source files (model and user code)
+#
+ALLSRC        = ${SRCDIR}/*.cpp ${USER_CPP:%.cpp=${USRCDIR}/%.cpp}
 
 #
 # Flags for simulator
@@ -107,7 +112,6 @@ all: ${PLI_SO} verilog
 # Verilog. Phony target
 #
 .PHONY: verilog
-
 verilog:
 	@if [ ! -d ${WORKDIR} ]; then                \
 	  vlib ${WORKDIR};                           \
@@ -118,10 +122,11 @@ verilog:
 #
 # PLI shared object
 #
-${PLI_SO}: ${VPROCLIBPATH} ${SRCDIR}/*.cpp ${USER_CPP:%.cpp=${USRCDIR}/%.cpp}
+${PLI_SO}: ${VPROCLIBPATH} ${ALLSRC} ${SRCDIR}/*.h ${USRCDIR}/*.h
 	@${C++} ${CFLAGS_SO} ${CFLAGS}               \
 	       -Wl,-whole-archive                    \
- 	       $^                                    \
+ 	       ${VPROCLIBPATH}                       \
+           ${ALLSRC}                             \
            -lpthread                             \
            -L${MODEL_TECH}                       \
            -lmtipli                              \

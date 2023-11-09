@@ -42,13 +42,14 @@ static usbPliApi::usb_signal_t nrzi[usbPliApi::MAXBUFSIZE];
 
 extern "C" void VUserMain1()
 {
-    char                 sbuf[1024];
+    char sbuf[1024];
+    int  pkt_gen_delay = 50;
 
     usbDevice dev(node);
 
     dev.waitOnNotReset();
 
-    if (dev.runUsbDevice() != usbPkt::USBOK)
+    if (dev.runUsbDevice(0) != usbPkt::USBOK)
     {
         fprintf(stderr, "***ERROR: VUserMain1: runUsbDevice returned bad status\n");
         dev.getUsbErrMsg(sbuf);
@@ -57,60 +58,6 @@ extern "C" void VUserMain1()
 
 
     dev.SendIdle(0);
-
-    /*
-    int                  error = 0;
-    int                  numbits;
-    int                  bitcount;
-    int                  pid;
-    uint32_t             args[4];
-    uint8_t              rxdata[4096];
-    int                  databytes;
-    usbPkt::usb_signal_t nrzi[usbPkt::MAXBUFSIZE];
-    char                 sbuf[1024];
-
-    // Create interface object to usbModel
-    usbPliApi           usbapi (node, std::string("ENDP"));
-
-    // Wait for reset to be deasserted
-    usbapi.waitOnNotReset();
-
-    // Wait for a SETUP token
-    bitcount = usbapi.waitForPkt(nrzi);
-
-    if (usbapi.decodePkt(nrzi, pid, args, rxdata, databytes) != usbPkt::USBOK)
-    {
-        fprintf(stderr, "***ERROR: VUserMain1: received bad packet\n");
-        usbapi.getUsbErrMsg(sbuf);
-        fprintf(stderr, "%s\n", sbuf);
-        error = 1;
-    }
-    else
-    {
-
-        usbapi.SendIdle(1);
-
-        // Wait for DATA
-        bitcount = usbapi.waitForPkt(nrzi);
-
-        if (usbapi.decodePkt(nrzi, pid, args, rxdata, databytes) != usbPkt::USBOK)
-        {
-            fprintf(stderr, "***ERROR: VUserMain1: received bad packet\n");
-            usbapi.getUsbErrMsg(sbuf);
-            fprintf(stderr, "%s\n", sbuf);
-            error = 1;
-        }
-
-        usbapi.SendIdle(10);
-
-        // Send an acknowledgement handshake
-        numbits = usbapi.genPkt(nrzi, error ? usbPliApi::PID_HSHK_NAK : usbPliApi::PID_HSHK_ACK);
-        usbapi.SendPacket(nrzi, numbits);
-    }
-
-
-    usbapi.SendIdle(0);
-    */
 
 }
 

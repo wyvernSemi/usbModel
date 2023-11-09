@@ -28,7 +28,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "usbDevice.h"
+#include "usbHost.h"
 
 static int node = 0;
 
@@ -41,9 +41,10 @@ static usbPliApi::usb_signal_t nrzi[usbPliApi::MAXBUFSIZE];
 
 extern "C" void VUserMain0()
 {
-    int numbits;
-    uint8_t addr;
-    uint8_t endp;
+    int                  numbits;
+    uint16_t             dev_status;
+    uint8_t              addr         = 0;
+    uint8_t              endp         = 0;
 
     int                  pid;
     uint32_t             args[4];
@@ -52,82 +53,21 @@ extern "C" void VUserMain0()
     char                 sbuf[1024];
 
     // Create interface object to usbModel
-    usbPliApi usbapi(node, std::string(FMT_HOST "HOST" FMT_NORMAL));
+    usbHost host(node);
 
     // Wait for reset to be deasserted
-    usbapi.waitOnNotReset();
+    host.waitOnNotReset();
 
-    usbapi.SendIdle(100);
+    host.SendIdle(100);
 
-    // SETUP
-    addr    = 0x0;
-    endp    = 0x0;
-    numbits = usbapi.genPkt(nrzi, usbPliApi::PID_TOKEN_SETUP, addr, endp);
-    usbapi.SendPacket(nrzi, numbits);
-    usbapi.SendIdle(50);
+    host.getDeviceStatus(addr, endp, dev_status);
 
-    // DATA0
-    uint8_t data[8] = {0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00};
-    int len = 8;
-    numbits = usbapi.genPkt(nrzi, usbPliApi::PID_DATA_0, data, len);
-    usbapi.SendPacket(nrzi, numbits);
+    host.SendIdle(100);
 
-    usbapi.SendIdle(100);
-
-    do
-    {
-        // Wait for ACK
-        usbapi.waitForPkt(nrzi);
-
-        if (usbapi.decodePkt(nrzi, pid, args, rxdata, databytes) != usbPkt::USBOK)
-        {
-            fprintf(stderr, "***ERROR: VUserMain0: received bad packet waiting for ACK\n");
-            usbapi.getUsbErrMsg(sbuf);
-            fprintf(stderr, "%s\n", sbuf);
-            break;
-        }
-        
-        if (pid != usbPkt::PID_HSHK_ACK && pid != usbPkt::PID_HSHK_NAK)
-        {
-            fprintf(stderr, "***ERROR: VUserMain0: received unexpected packet ID (0x%02x)\n", pid);
-            break;
-        }
-    
-    } while (pid == usbPkt::PID_HSHK_NAK);
-        
-    // Send IN
-    numbits = usbapi.genPkt(nrzi, usbPliApi::PID_TOKEN_IN, addr, endp);
-    usbapi.SendPacket(nrzi, numbits);
-
-    usbapi.SendIdle(5);
-    
-    // Wait for data
-    usbapi.waitForPkt(nrzi);
-    if (usbapi.decodePkt(nrzi, pid, args, rxdata, databytes) != usbPkt::USBOK)
-    {
-        fprintf(stderr, "***ERROR: VUserMain0: received bad packet waiting for data\n");
-        usbapi.getUsbErrMsg(sbuf);
-        fprintf(stderr, "%s\n", sbuf);
-    }
-    else
-    {
-        if (pid == usbPkt::PID_DATA_1)
-        {
-            // Send ACK
-            numbits = usbapi.genPkt(nrzi, usbPliApi::PID_HSHK_ACK);
-            usbapi.SendPacket(nrzi, numbits);
-            usbapi.SendIdle(5);
-        }
-        else
-        {
-            fprintf(stderr, "***ERROR: VUserMain0: received unexpected packet ID waiting for data (0x%02x)\n", pid);
-        }
-    }
-
-    usbapi.SendIdle(50);
+    fprintf(stderr, "\nVUserMain0: received device status of 0x%04x\n\n", dev_status);
 
     // Halt the simulation
-    VWrite(UVH_FINISH, 0, 0, node);
+    host.haltSimulation();
 
 }
 

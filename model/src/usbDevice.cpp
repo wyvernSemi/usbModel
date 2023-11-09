@@ -97,49 +97,49 @@ int usbDevice::waitForExpectedPacket(const int pktType, int &pid, uint32_t args[
 //-------------------------------------------------------------
 
 // Data
-void usbDevice::sendPktToHost(const int pid, const uint8_t data[], unsigned datalen)
+void usbDevice::sendPktToHost(const int pid, const uint8_t data[], unsigned datalen, const int idle)
 {
     // Generate packet
     int numbits = genPkt(nrzi, pid, data, datalen);
 
     // Send over the USB line
-    SendPacket(nrzi, numbits);
+    SendPacket(nrzi, numbits, idle);
 }
 
 // Token
-void usbDevice::sendPktToHost(const int pid, const uint8_t addr, uint8_t endp)
+void usbDevice::sendPktToHost(const int pid, const uint8_t addr, uint8_t endp, const int idle)
 {
     // Generate packet
     int numbits = genPkt(nrzi, pid, addr, endp);
 
     // Send over the USB line
-    SendPacket(nrzi, numbits);
+    SendPacket(nrzi, numbits, idle);
 }
 
 // SOF
-void usbDevice::sendPktToHost(const int pid, const uint16_t framenum)
+void usbDevice::sendPktToHost(const int pid, const uint16_t framenum, const int idle)
 {
     // Generate packet
     int numbits = genPkt(nrzi, pid, framenum);
 
     // Send over the USB line
-    SendPacket(nrzi, numbits);
+    SendPacket(nrzi, numbits, idle);
 }
 
 // Handshake
-void usbDevice::sendPktToHost(const int pid)
+void usbDevice::sendPktToHost(const int pid, const int idle)
 {
     // Generate packet
     int numbits = genPkt(nrzi, pid);
 
     // Send over the USB line
-    SendPacket(nrzi, numbits);
+    SendPacket(nrzi, numbits, idle);
 }
 
 //-------------------------------------------------------------
 //-------------------------------------------------------------
 
-int usbDevice::runUsbDevice()
+int usbDevice::runUsbDevice(const int idle)
 {
     int                  error = 0;
     int                  pid;
@@ -163,19 +163,19 @@ int usbDevice::runUsbDevice()
         switch(pid)
         {
         case PID_TOKEN_SETUP:
-            if (processControl(args[ARGADDRIDX], args[ARGENDPIDX]) != USBOK)
+            if (processControl(args[ARGADDRIDX], args[ARGENDPIDX], idle) != USBOK)
             {
                 return USBERROR;
             }
             break;
         case PID_TOKEN_IN:
-            processIn(args, data, databytes);
+            processIn(args, data, databytes, idle);
             break;
         case PID_TOKEN_OUT:
-            processOut(args, data, databytes);
+            processOut(args, data, databytes, idle);
             break;
         case PID_TOKEN_SOF:
-            processSOF(args);
+            processSOF(args, idle);
             break;
         default:
             USBERRMSG("runUsbDevice: Received unexpected packet ID (0x%x)\n", pid);
@@ -190,7 +190,7 @@ int usbDevice::runUsbDevice()
 //-------------------------------------------------------------
 //-------------------------------------------------------------
 
-int usbDevice::processControl(const uint32_t addr, const uint32_t endp)
+int usbDevice::processControl(const uint32_t addr, const uint32_t endp, const int idle)
 {
     int                  numbits;
     int                  pid;
@@ -203,7 +203,7 @@ int usbDevice::processControl(const uint32_t addr, const uint32_t endp)
     if (!((addr == 0 && endp == 0) || (addr == devaddr && endp > 0 && endp <= numendpoints)))
     {
         // Generate a STALL handshake if an error
-        sendPktToHost(PID_HSHK_STALL);
+        sendPktToHost(PID_HSHK_STALL, idle);
 
         USBERRMSG("processControl: Received bad addr/endp (0x%02x 0x%02x)\n", addr, endp);
         return USBERROR;
@@ -222,7 +222,7 @@ int usbDevice::processControl(const uint32_t addr, const uint32_t endp)
         USBDEVDEBUG ( "Send ACK\n");
 
         // Generate an ACK handshake for the DATA0 packet
-        sendPktToHost(PID_HSHK_ACK);
+        sendPktToHost(PID_HSHK_ACK, idle);
 
         // Map received data over the expected request type
         setupRequest* sreq = (setupRequest*)rxdata;
@@ -234,7 +234,7 @@ int usbDevice::processControl(const uint32_t addr, const uint32_t endp)
         {
         case USB_DEV_REQTYPE_SET:
         case USB_DEV_REQTYPE_GET:
-            return handleDevReq(sreq);
+            return handleDevReq(sreq, idle);
             break;
         case USB_IF_REQTYPE_SET:
         case USB_IF_REQTYPE_GET:
@@ -244,7 +244,7 @@ int usbDevice::processControl(const uint32_t addr, const uint32_t endp)
             break;
         default:
             // Generate a STALL handshake if an unknown bmRequestType
-            sendPktToHost(PID_HSHK_STALL);
+            sendPktToHost(PID_HSHK_STALL, idle);
         }
     }
 
@@ -254,15 +254,15 @@ int usbDevice::processControl(const uint32_t addr, const uint32_t endp)
 //-------------------------------------------------------------
 //-------------------------------------------------------------
 
-int usbDevice::handleDevReq(const setupRequest* sreq)
+int usbDevice::handleDevReq(const setupRequest* sreq, const int idle)
 {
     int                  numbits;
     int                  pid;
     uint32_t             args[4];
     int                  databytes;
+    int                  datasize;
 
-    USBDEVDEBUG ( "==> handleDevReq (0x%x 0x%04x)\n", sreq->bRequest, sreq->wLength);
-
+   // USBDEVDEBUG ( "==> handleDevReq (0x%x 0x%04x)\n", sreq->bRequest, sreq->wLength);
 
     switch(sreq->bRequest)
     {
@@ -284,10 +284,11 @@ int usbDevice::handleDevReq(const setupRequest* sreq)
 
         // Construct status data
         uint8_t buf[2];
-        buf[0] = remoteWakeup | selfPowered;
-        buf[1] = 0;
+        buf[0]   = remoteWakeup | selfPowered;
+        buf[1]   = 0;
+        datasize = 2;
 
-        USBDEVDEBUG ( "==> handleDevReq: waiting for IN token\n");
+        USBDEVDEBUG ("==> handleDevReq: waiting for IN token\n");
 
         if (waitForExpectedPacket(PID_TOKEN_IN, pid, args, rxdata, databytes) != USBOK)
         {
@@ -300,7 +301,7 @@ int usbDevice::handleDevReq(const setupRequest* sreq)
             while (true)
             {
                 // Send DATA1 packet
-                sendPktToHost(PID_DATA_1, buf, 2);
+                sendPktToHost(PID_DATA_1, buf, datasize, idle);
 
                 USBDISPPKT("  %s RX DEV REQ: GET STATUS\n    " FMT_DATA_GREY "remWkup=%d selfPwd=%d" FMT_NORMAL "\n",
                     name.c_str(), remoteWakeup ? 1 : 0, selfPowered ? 1 : 0);
@@ -342,7 +343,7 @@ int usbDevice::handleDevReq(const setupRequest* sreq)
        break;
     default:
         // Generate a STALL handshake if an unknown bRequest
-        sendPktToHost(PID_HSHK_STALL);
+        sendPktToHost(PID_HSHK_STALL, idle);
         break;
     }
 
@@ -352,7 +353,7 @@ int usbDevice::handleDevReq(const setupRequest* sreq)
 //-------------------------------------------------------------
 //-------------------------------------------------------------
 
-int  usbDevice::processIn  (const uint32_t args[], const uint8_t  data[], const int databytes)
+int  usbDevice::processIn  (const uint32_t args[], const uint8_t  data[], const int databytes, const int idle)
 {
     return USBOK;
 }
@@ -360,7 +361,7 @@ int  usbDevice::processIn  (const uint32_t args[], const uint8_t  data[], const 
 //-------------------------------------------------------------
 //-------------------------------------------------------------
 
-int  usbDevice::processOut (const uint32_t args[], uint8_t data[], const int databytes)
+int  usbDevice::processOut (const uint32_t args[], uint8_t data[], const int databytes, const int idle)
 {
     return USBOK;
 }
@@ -368,7 +369,7 @@ int  usbDevice::processOut (const uint32_t args[], uint8_t data[], const int dat
 //-------------------------------------------------------------
 //-------------------------------------------------------------
 
-int  usbDevice::processSOF(const uint32_t args[])
+int  usbDevice::processSOF(const uint32_t args[], const int idle)
 {
     return USBOK;
 }
