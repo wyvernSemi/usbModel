@@ -49,7 +49,7 @@ extern "C" void VUserMain1()
 
     dev.waitOnNotReset();
 
-    if (dev.runUsbDevice(0) != usbPkt::USBOK)
+    if (dev.runUsbDevice() != usbPkt::USBOK)
     {
         fprintf(stderr, "***ERROR: VUserMain1: runUsbDevice returned bad status\n");
         dev.getUsbErrMsg(sbuf);

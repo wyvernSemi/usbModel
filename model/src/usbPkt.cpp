@@ -309,7 +309,7 @@ int usbPkt::nrziDec(const usb_signal_t nrzi[], usb_signal_t raw[], const int sta
 // Handshake and preamble packet generation
 // -------------------------------------------------------------------------
 
-int usbPkt::genPkt(usb_signal_t buf[], const int pid)
+int usbPkt::genUsbPkt(usb_signal_t buf[], const int pid)
 {
     int idx = 0;
 
@@ -323,7 +323,7 @@ int usbPkt::genPkt(usb_signal_t buf[], const int pid)
     case PID_SPCL_PREAMB:
         break;
     default:
-        USBERRMSG("genPkt: Bad PID (0x%x) seen for handshake generation.\n", pid);
+        USBERRMSG("genUsbPkt: Bad PID (0x%x) seen for handshake generation.\n", pid);
         return USBERROR;
     }
 
@@ -345,7 +345,7 @@ int usbPkt::genPkt(usb_signal_t buf[], const int pid)
 // Token generation (not SOF)
 // -------------------------------------------------------------------------
 
-int usbPkt::genPkt(usb_signal_t buf[], const int pid, const uint8_t addr, const uint8_t endp)
+int usbPkt::genUsbPkt(usb_signal_t buf[], const int pid, const uint8_t addr, const uint8_t endp)
 {
     int idx = 0;
     unsigned crc;
@@ -358,21 +358,21 @@ int usbPkt::genPkt(usb_signal_t buf[], const int pid, const uint8_t addr, const 
     case PID_TOKEN_SETUP:
         break;
     default:
-        USBERRMSG("genPkt: Bad PID (0x%x) seen for token generation.\n", pid);
+        USBERRMSG("genUsbPkt: Bad PID (0x%x) seen for token generation.\n", pid);
         return USBERROR;
     }
 
     // Validate the address (0 to 127)
     if (addr > MAXDEVADDR)
     {
-        USBERRMSG("genPkt: Invalid token address (0x%x\n", addr);
+        USBERRMSG("genUsbPkt: Invalid token address (0x%x\n", addr);
         return USBERROR;
     }
 
     // Validate the endpoint
     if (endp > MAXENDP)
     {
-        USBERRMSG("genPkt: Invalid token end point (0x%x\n", endp);
+        USBERRMSG("genUsbPkt: Invalid token end point (0x%x\n", endp);
         return USBERROR;
     }
 
@@ -408,7 +408,7 @@ int usbPkt::genPkt(usb_signal_t buf[], const int pid, const uint8_t addr, const 
 // SOF token generation
 // -------------------------------------------------------------------------
 
-int usbPkt::genPkt(usb_signal_t buf[], const int pid, const uint16_t framenum)
+int usbPkt::genUsbPkt(usb_signal_t buf[], const int pid, const uint16_t framenum)
 {
     int idx = 0;
     unsigned crc;
@@ -419,14 +419,14 @@ int usbPkt::genPkt(usb_signal_t buf[], const int pid, const uint16_t framenum)
     case PID_TOKEN_SOF:
         break;
     default:
-        USBERRMSG("genPkt: Bad PID (0x%x) seen for SOF generation.\n", pid);
+        USBERRMSG("genUsbPkt: Bad PID (0x%x) seen for SOF generation.\n", pid);
         return USBERROR;
     }
 
     // Validate frame number
     if (framenum > MAXFRAMENUM)
     {
-        USBERRMSG("genPkt: Ivalid frame number (%d)\n", framenum);
+        USBERRMSG("genUsbPkt: Ivalid frame number (%d)\n", framenum);
         return USBERROR;
     }
 
@@ -462,7 +462,7 @@ int usbPkt::genPkt(usb_signal_t buf[], const int pid, const uint16_t framenum)
 // Data Packet generation
 // -------------------------------------------------------------------------
 
-int usbPkt::genPkt(usb_signal_t buf[], const int pid, const uint8_t data[], const unsigned len)
+int usbPkt::genUsbPkt(usb_signal_t buf[], const int pid, const uint8_t data[], const unsigned len)
 {
     int idx = 0;
 
@@ -475,7 +475,7 @@ int usbPkt::genPkt(usb_signal_t buf[], const int pid, const uint8_t data[], cons
     case PID_DATA_M:
         break;
     default:
-        USBERRMSG("genPkt: Bad PID (0x%x) seen for data packet generation.\n", pid);
+        USBERRMSG("genUsbPkt: Bad PID (0x%x) seen for data packet generation.\n", pid);
         return USBERROR;
     }
 
@@ -485,21 +485,21 @@ int usbPkt::genPkt(usb_signal_t buf[], const int pid, const uint8_t data[], cons
     case usb_speed_e::LS:
         if (len > 8)
         {
-            USBERRMSG("genPkt: Invalid data length for low speed (%d).\n", len);
+            USBERRMSG("genUsbPkt: Invalid data length for low speed (%d).\n", len);
             return USBERROR;
         }
         break;
     case usb_speed_e::FS:
         if (len > 64)
         {
-            USBERRMSG("genPkt: Invalid data length for fast speed (%d).\n", len);
+            USBERRMSG("genUsbPkt: Invalid data length for fast speed (%d).\n", len);
             return USBERROR;
         }
         break;
     case usb_speed_e::HS:
         if (len > 512)
         {
-            USBERRMSG("genPkt: Invalid data length for high speed (%d).\n", len);
+            USBERRMSG("genUsbPkt: Invalid data length for high speed (%d).\n", len);
             return USBERROR;
         }
         break;
@@ -696,112 +696,3 @@ int usbPkt::decodePkt(const usb_signal_t nrzibuf[], int& pid, uint32_t args[], u
 
     return USBOK;
 }
-
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-
-#define TEST
-
-#ifdef TEST
-
-int main(int argc, char * argv[])
-{
-    int idx;
-    usbPkt pkt;
-
-    uint8_t decbuf[1024];
-
-#ifdef TESTCRC
-    unsigned crc;
-
-    usbPkt::usb_signal_t data[4] = { {0x15, 0x00}, {0x07, 0x00}, {0x00, 0x00}, {0x00, 0x00} };
-
-    crc = pkt.usbcrc5(data, 2, 3);
-
-    printf("crc = 0x%04x (0x%04x)\n", crc, pkt.bitrev(crc, 5));
-
-    usbPkt::usb_signal_t data1[4] = { {0x23, 0x00}, {0x45, 0x00}, {0x067, 0x00}, {0x89, 0x00} };
-
-    crc = pkt.usbcrc16(data1, 4);
-
-    printf("crc = 0x%04x (0x%04x)\n", crc, pkt.bitrev(crc, 16));
-#endif
-
-    usbPkt::usb_signal_t data2[1024];
-
-    // Generate NAK handshake
-    int numbits = pkt.genPkt(data2, usbPkt::PID_HSHK_NAK);
-
-    for (idx = 0; idx < numbits / 8; idx++)
-    {
-        for (int bits = 0; bits < 8; bits++)
-            printf("%c", usbPkt::bitenc(data2[idx], bits));
-        printf("%c", '_');
-    }
-
-    for (int bits = 0; bits < numbits % 8; bits++)
-        printf("%c", usbPkt::bitenc(data2[idx], bits));
-
-    printf("\n");
-
-    int      pid;
-    uint32_t args[4];
-    char errstr[usbPkt::ERRBUFSIZE];
-    int databytes;
-
-    if (pkt.decodePkt(data2, pid, args, NULL, databytes) != usbPkt::USBOK)
-    {
-        fprintf(stderr, "***ERROR: Decoded bad handshake packet:\n    ");
-        pkt.getUsbErrMsg(errstr);
-        fprintf(stderr, "%s\n", errstr);
-    }
-
-    // Generate SETUP token
-    numbits = pkt.genPkt(data2, usbPkt::PID_TOKEN_SETUP, 0x15, 0xe);
-
-    for (idx = 0; idx < numbits / 8; idx++)
-    {
-        for (int bits = 0; bits < 8; bits++)
-            printf("%c", usbPkt::bitenc(data2[idx], bits));
-        printf("%c", '_');
-    }
-
-    for (int bits = 0; bits < numbits % 8; bits++)
-        printf("%c", usbPkt::bitenc(data2[idx], bits));
-
-    printf("\n");
-
-    if (pkt.decodePkt(data2, pid, args, NULL, databytes))
-    {
-        fprintf(stderr, "***ERROR: Decoded bad token packet:\n    ");
-        pkt.getUsbErrMsg(errstr);
-        fprintf(stderr, "%s\n", errstr);
-    }
-
-    // Generate DATA1 packet
-    uint8_t payload[4] = { 0x23, 0x45, 0x67, 0x89 };
-    numbits = pkt.genPkt(data2, usbPkt::PID_DATA_1, payload, 4);
-
-    for (idx = 0; idx < numbits / 8; idx++)
-    {
-        for (int bits = 0; bits < 8; bits++)
-            printf("%c", usbPkt::bitenc(data2[idx], bits));
-
-        printf("%c", '_');
-    }
-
-    for (int bits = 0; bits < numbits % 8; bits++)
-        printf("%c", usbPkt::bitenc(data2[idx], bits));
-
-    printf("\n");
-
-    if (pkt.decodePkt(data2, pid, args, decbuf, databytes))
-    {
-        fprintf(stderr, "***ERROR: Decoded bad token packet:\n    ");
-        pkt.getUsbErrMsg(errstr);
-        fprintf(stderr, "%s\n", errstr);
-    }
-}
-
-#endif

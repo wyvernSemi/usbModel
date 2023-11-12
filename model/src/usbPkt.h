@@ -1,5 +1,5 @@
 //=============================================================
-// 
+//
 // Copyright (c) 2023 Simon Southwell. All rights reserved.
 //
 // Date: 19th October 2023
@@ -76,7 +76,7 @@ public:
     static const int      PID_TOKEN_PING    = 0x4;
     static const int      PID_DATA_2        = 0x7;
     static const int      PID_DATA_M        = 0xf;
-    
+
     static const int      PID_INVALID       = -1;
 
     static const int      SYNC              = 0x80;
@@ -90,7 +90,7 @@ public:
 
     static const int      POLY16            = 0x8005;
     static const unsigned BIT16             = 0x8000U;
-                                           
+
     static const int      POLY5             = 0x5;
     static const unsigned BIT5              = 0x10U;
 
@@ -120,7 +120,7 @@ public:
     static const int      ARGSOFCRC5IDX     = 1;
 
     static const int      ARGCRC16IDX       = 0;
-    
+
     static const int      USB_SE0           = 0;
     static const int      USB_SE1           = 3;
     static const int      USB_J             = 1;
@@ -135,8 +135,47 @@ public:
         reset();
     }
 
+    void getUsbErrMsg(char* msg)
+    {
+        sprintf(msg, "%s", errbuf);
+    }
+
+    // Packet generation methods
+    int          genUsbPkt    (usb_signal_t nrzibuf[], const int pid);                                              // Handshake
+    int          genUsbPkt    (usb_signal_t nrzibuf[], const int pid, const uint8_t  addr,   const uint8_t endp);   // Token
+    int          genUsbPkt    (usb_signal_t nrzibuf[], const int pid, const uint16_t framenum);                     // SOF
+    int          genUsbPkt    (usb_signal_t nrzibuf[], const int pid, const uint8_t  data[], const unsigned len);   // Data
+
+    // Packet decode method
+    int          decodePkt (const usb_signal_t nrzibuf[], int& pid, uint32_t args[], uint8_t data[], int &databytes);
+
+protected:
+
+    void         reset    (void)
+    {
+        currspeed = usb_speed_e::FS;
+    }
+
+    // Buffer for error messages
+    char         errbuf[ERRBUFSIZE];
+
+    std::string name;
+
+private:
+
+    // CRC generation methods
+    int          usbcrc16(const usb_signal_t data[], const unsigned len = 1, const unsigned crcinit = 0xffff);
+    int          usbcrc5 (const usb_signal_t data[], const unsigned len = 1, const int      endbits = 8, const unsigned crcinit = 0x1f);
+
+    // Bit reversal utility method
+    uint32_t     bitrev  (const uint32_t     data,   const int      bits);
+
+    // NRZI methods
+    int          nrziEnc (const usb_signal_t raw[],  usb_signal_t   nrzi[],  const unsigned len,         const int start = 1);
+    int          nrziDec (const usb_signal_t nrzi[], usb_signal_t   raw[],   const int start = 1);
+
     // Debug method to return differential signal state as printable character: K, J, SE0 (0) or SE1 (1)
-    static char bitenc(usbPkt::usb_signal_t raw, const int bit)
+    char bitenc(usb_signal_t raw, const int bit)
     {
         uint8_t se = ~(raw.dp ^ raw.dm);
 
@@ -145,69 +184,6 @@ public:
                (raw.dp         & (1 << bit)) ? 'J' :
                                                'K';
     }
-
-    // Line speed methods
-    int setLineSpeed(usb_speed_e speed)
-    {
-        // Check validity of argument
-        switch (speed)
-        {
-        case usb_speed_e::LS:
-        case usb_speed_e::FS:
-        case usb_speed_e::HS:
-            break;
-        default:
-            USBERRMSG("setLineSpeed: Unrecognised line speed (%d)\n", speed);
-            return USBERROR;
-            break;
-        }
-
-        // Update speed
-        currspeed = speed;
-
-        return USBOK;
-    }
-
-    void getUsbErrMsg(char* msg)
-    {
-        sprintf(msg, "%s", errbuf);
-    }
-
-
-    // Packet generation methods
-    int          genPkt(usb_signal_t nrzibuf[], const int pid);                                              // Handshake
-    int          genPkt(usb_signal_t nrzibuf[], const int pid, const uint8_t  addr,   const uint8_t endp);   // Token
-    int          genPkt(usb_signal_t nrzibuf[], const int pid, const uint16_t framenum);                     // SOF
-    int          genPkt(usb_signal_t nrzibuf[], const int pid, const uint8_t  data[], const unsigned len);   // Data
-
-    // Packet decode method
-    int          decodePkt(const usb_signal_t nrzibuf[], int& pid, uint32_t args[], uint8_t data[], int &databytes);
-
-private:
-    // CRC generation methods
-    int          usbcrc16(const usb_signal_t data[], const unsigned len = 1, const unsigned crcinit = 0xffff);
-    int          usbcrc5 (const usb_signal_t data[], const unsigned len = 1, const int      endbits = 8, const unsigned crcinit = 0x1f);
-
-    // Bit reversal utility method
-    uint32_t     bitrev  (const uint32_t     data,   const int      bits);
-
-
-protected:
-
-    void         reset(void)
-    {
-        currspeed = usb_speed_e::FS;
-    }
-
-    // Buffer for error messages
-    char         errbuf[ERRBUFSIZE];
-    
-    std::string name;
-
-private:
-    // NRZI methods
-    int          nrziEnc (const usb_signal_t raw[],  usb_signal_t   nrzi[],  const unsigned len,         const int start = 1);
-    int          nrziDec (const usb_signal_t nrzi[], usb_signal_t   raw[],   const int start = 1);
 
     // Internal buffer for constructing raw, non-NRZI encoded packets
     usb_signal_t rawbuf[MAXBUFSIZE];

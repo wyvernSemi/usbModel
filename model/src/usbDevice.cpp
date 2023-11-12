@@ -59,7 +59,7 @@ int usbDevice::waitForExpectedPacket(const int pktType, int &pid, uint32_t args[
             break;
         }
 
-        if (decodePkt(nrzi, pid, args, data, databytes) != usbPkt::USBOK)
+        if (decodePkt(nrzi, pid, args, data, databytes) != USBOK)
         {
             USBDEVDEBUG ( "==> waitForExpectedPacket: seen bad packet\n");
             // Ignore any packets that have errors
@@ -100,7 +100,7 @@ int usbDevice::waitForExpectedPacket(const int pktType, int &pid, uint32_t args[
 void usbDevice::sendPktToHost(const int pid, const uint8_t data[], unsigned datalen, const int idle)
 {
     // Generate packet
-    int numbits = genPkt(nrzi, pid, data, datalen);
+    int numbits = genUsbPkt(nrzi, pid, data, datalen);
 
     // Send over the USB line
     SendPacket(nrzi, numbits, idle);
@@ -110,7 +110,7 @@ void usbDevice::sendPktToHost(const int pid, const uint8_t data[], unsigned data
 void usbDevice::sendPktToHost(const int pid, const uint8_t addr, uint8_t endp, const int idle)
 {
     // Generate packet
-    int numbits = genPkt(nrzi, pid, addr, endp);
+    int numbits = genUsbPkt(nrzi, pid, addr, endp);
 
     // Send over the USB line
     SendPacket(nrzi, numbits, idle);
@@ -120,7 +120,7 @@ void usbDevice::sendPktToHost(const int pid, const uint8_t addr, uint8_t endp, c
 void usbDevice::sendPktToHost(const int pid, const uint16_t framenum, const int idle)
 {
     // Generate packet
-    int numbits = genPkt(nrzi, pid, framenum);
+    int numbits = genUsbPkt(nrzi, pid, framenum);
 
     // Send over the USB line
     SendPacket(nrzi, numbits, idle);
@@ -130,7 +130,7 @@ void usbDevice::sendPktToHost(const int pid, const uint16_t framenum, const int 
 void usbDevice::sendPktToHost(const int pid, const int idle)
 {
     // Generate packet
-    int numbits = genPkt(nrzi, pid);
+    int numbits = genUsbPkt(nrzi, pid);
 
     // Send over the USB line
     SendPacket(nrzi, numbits, idle);
@@ -141,12 +141,9 @@ void usbDevice::sendPktToHost(const int pid, const int idle)
 
 int usbDevice::runUsbDevice(const int idle)
 {
-    int                  error = 0;
     int                  pid;
     uint32_t             args[4];
-    uint8_t              data[4096];
     int                  databytes;
-    usbPkt::usb_signal_t nrzi[usbPkt::MAXBUFSIZE];
 
     // Wait for reset deassertion
     waitOnNotReset();
@@ -169,10 +166,10 @@ int usbDevice::runUsbDevice(const int idle)
             }
             break;
         case PID_TOKEN_IN:
-            processIn(args, data, databytes, idle);
+            processIn(args, rxdata, databytes, idle);
             break;
         case PID_TOKEN_OUT:
-            processOut(args, data, databytes, idle);
+            processOut(args, rxdata, databytes, idle);
             break;
         case PID_TOKEN_SOF:
             processSOF(args, idle);
@@ -184,7 +181,7 @@ int usbDevice::runUsbDevice(const int idle)
         }
     }
 
-    return usbPkt::USBOK;
+    return USBOK;
 }
 
 //-------------------------------------------------------------
@@ -192,7 +189,6 @@ int usbDevice::runUsbDevice(const int idle)
 
 int usbDevice::processControl(const uint32_t addr, const uint32_t endp, const int idle)
 {
-    int                  numbits;
     int                  pid;
     uint32_t             args[4];
     int                  databytes;
@@ -256,7 +252,6 @@ int usbDevice::processControl(const uint32_t addr, const uint32_t endp, const in
 
 int usbDevice::handleDevReq(const setupRequest* sreq, const int idle)
 {
-    int                  numbits;
     int                  pid;
     uint32_t             args[4];
     int                  databytes;
