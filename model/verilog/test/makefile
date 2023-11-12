@@ -21,30 +21,67 @@
 ###################################################################
 
 # MODEL_TECH environment variable must be set for pointing to
-# modelsim.ini file and binary directory respectively
+# executable binary directory
 
-#
+#------------------------------------------------------
 # User modifiable flags
-#
+#------------------------------------------------------
 USRFLAGS      = -DUSBTESTMODE
 ARCH          = -m32
+USRSRCDIR     = usercode
+USER_CPP      = VUserMain0.cpp VUserMain1.cpp
 
+#------------------------------------------------------
+# Definitions for VProc virtual processor
+#------------------------------------------------------
+
+#
+# Only need two virtual processor nodes
+#
 NUM_VPROC     = 2
 
-# Location of VProc directory. Assumes in same directory as usb.
-# Update if relocated.
+#
+# Location of VProc directory. Assumes in same directory as usbModel repository.
+# Update/override if located elsewhere.
+#
 VPROC_TOP     = ../../../../vproc
 
+#
 # Define the github repository URL for the VProc virtual processor
+#
 VPROC_REPO    = https://github.com/wyvernSemi/vproc.git
 
 #
 # USB VHost test definitions
 #
 USBVLOGDIR    = ../src
+PLIDIR        = ../pli
 SRCDIR        = ../../src
-USRCDIR       = usercode
 WORKDIR       = work
+
+#------------------------------------------------------
+# User code definitions (non-modifiable)
+#------------------------------------------------------
+
+#
+# Find any user code header files (if any)
+#
+USRHDRS       = $(wildcard ${USRSRCDIR}/*.h)
+
+#
+# Get all the header files for the model source code
+#
+SRCHDRS       = $(wildcard ${SRCDIR}/*.h)
+
+#
+# Usb C++ auto-generated memory map for Verilog
+# accessible signals and registers
+#
+USBCMAP       = ${USRSRCDIR}/usbMap.h
+
+#------------------------------------------------------
+# PLI shared object definitions
+#------------------------------------------------------
 
 #
 # PLI C/C++ code definitions
@@ -52,36 +89,32 @@ WORKDIR       = work
 PLI_SO        = VProc.so
 VPROC_LIB     = libvproc.a
 VPROCLIBPATH  = ${VPROC_TOP}/${VPROC_LIB}
-
-#
-# Test c++ code
-#
-USER_CPP      = VUserMain0.cpp                   \
-                VUserMain1.cpp                   \
-                veriuser.cpp
+USBVLOGMAP    = ${USBVLOGDIR}/usbModel.vh
 
 #
 # All source files (model and user code)
 #
-ALLSRC        = ${SRCDIR}/*.cpp ${USER_CPP:%.cpp=${USRCDIR}/%.cpp}
+ALLSRC        = ${SRCDIR}/*.cpp ${PLIDIR}/*.cpp ${USER_CPP:%.cpp=${USRSRCDIR}/%.cpp} ${USBCMAP}
 
-#
+#------------------------------------------------------
 # Flags for simulator
-#
+#------------------------------------------------------
+
 TOP           = test
 TOP_VC        = test.vc
 VSIMFLAGS     = -pli ${PLI_SO} ${TOP}
 VLOGFLAGS     = -quiet -incr +incdir+${VPROC_TOP} +incdir+${USBVLOGDIR} -f ${TOP_VC}
 
-#
+#------------------------------------------------------
 # Flags for C compiler
-#
+#------------------------------------------------------
 CC            = gcc
 C++           = g++
 CFLAGS        = ${ARCH} -fPIC                    \
                 -Wno-write-strings               \
                 -I${SRCDIR}                      \
-                -I${USRCDIR}                     \
+                -I${PLIDIR}                      \
+                -I${USRSRCDIR}                   \
                 -I${VPROC_TOP}/code              \
                 -I${MODEL_TECH}/../include       \
                 ${USRFLAGS}
@@ -109,7 +142,16 @@ CPPSTD        = -std=c+11
 all: ${PLI_SO} verilog
 
 #
-# Verilog. Phony target
+# Check that the MODEL_TECH environment variable is defined
+#
+.PHONY: checkenv
+checkenv:
+ifndef MODEL_TECH
+	$(error MODEL_TECH is undefined)
+endif
+
+#
+# Verilog
 #
 .PHONY: verilog
 verilog:
@@ -118,11 +160,10 @@ verilog:
     fi
 	@vlog ${VLOGFLAGS}
 
-
 #
 # PLI shared object
 #
-${PLI_SO}: ${VPROCLIBPATH} ${ALLSRC} ${SRCDIR}/*.h ${USRCDIR}/*.h
+${PLI_SO}: checkenv ${VPROCLIBPATH} ${ALLSRC} ${SRCHDRS} ${USRHDRS}
 	@${C++} ${CFLAGS_SO} ${CFLAGS}               \
 	       -Wl,-whole-archive                    \
  	       ${VPROCLIBPATH}                       \
@@ -143,7 +184,13 @@ ${VPROCLIBPATH}: ${VPROC_TOP}
 # Checkout VProc from github if it doesn't exist at the specified location
 #
 ${VPROC_TOP}:
-	git clone ${VPROC_REPO} ${VPROC_TOP} --recursive
+	@git clone ${VPROC_REPO} ${VPROC_TOP} --recursive
+    
+#
+# Auto-generate the C++ header from the Verilog header so they always match
+#
+${USBCMAP}: ${USBVLOGMAP} 
+	@sed -e 's/`/#/g' -e 's/_USB_VH_/_USB_MAP_H_/g' < $^ > $@
 
 #------------------------------------------------------
 # EXECUTION RULES
@@ -169,7 +216,7 @@ clean:
 	@if [ -d "${WORKDIR}" ]; then                \
 	  vdel -all;                                 \
      fi
-	@${MAKE} --no-print-directory -C ${VPROC_TOP}     clean
-	@rm -rf ${PLI_SO} *.wlf transcript work
+	@${MAKE} --no-print-directory -C ${VPROC_TOP} clean
+	@rm -rf ${PLI_SO} ${USBCMAP} *.wlf transcript work
 
 
