@@ -264,6 +264,13 @@ static const uint8_t  USB_REMOTE_WAKEUP_ON     = 0x0002;
 static const uint8_t  USB_NOT_SELF_POWERED     = 0x0000;
 static const uint8_t  USB_SELF_POWERED         = 0x0001;
 
+static const uint8_t  USB_DEV_DESCRIPTOR_TYPE  = 0x01;
+static const uint8_t  USB_CFG_DESCRIPTOR_TYPE  = 0x02;
+static const uint8_t  USB_STR_DESCRIPTOR_TYPE  = 0x03;
+static const uint8_t  USB_IF_DESCRIPTOR_TYPE   = 0x04;
+static const uint8_t  USB_EP_DESCRIPTOR_TYPE   = 0x05;
+static const uint8_t  USB_FUNC_DESCRIPTOR_TYPE = 0x24;
+
 static const int      USB_NO_ASSIGNED_ADDR     = -1;
 
 #endif
