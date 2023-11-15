@@ -28,12 +28,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-//#include "usbPliApi.h"
 #include "usbDevice.h"
 
 static int node = 1;
-
-static usbPliApi::usb_signal_t nrzi[usbPliApi::MAXBUFSIZE];
 
 //-------------------------------------------------------------
 // VUserMain1()
@@ -42,20 +39,18 @@ static usbPliApi::usb_signal_t nrzi[usbPliApi::MAXBUFSIZE];
 
 extern "C" void VUserMain1()
 {
-    char sbuf[1024];
-    int  pkt_gen_delay = 50;
+    char sbuf[usbModel::ERRBUFSIZE];
 
     usbDevice dev(node);
 
     dev.waitOnNotReset();
 
-    if (dev.runUsbDevice() != usbPkt::USBOK)
+    if (dev.runUsbDevice() != usbModel::USBOK)
     {
         fprintf(stderr, "***ERROR: VUserMain1: runUsbDevice returned bad status\n");
         dev.getUsbErrMsg(sbuf);
         fprintf(stderr, "%s\n", sbuf);
     }
-
 
     dev.SendIdle(0);
 

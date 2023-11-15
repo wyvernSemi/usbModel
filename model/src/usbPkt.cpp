@@ -23,11 +23,6 @@
 //
 //=============================================================
 
-// crc5  =  x^5 +  x^2 + 1
-// crc16 = x^16 + x^15 + x^2 + 1
-
-#include <cstring>
-#include <stdio.h>
 #include "usbPkt.h"
 
 // -------------------------------------------------------------------------
@@ -56,9 +51,10 @@ uint32_t usbPkt::bitrev(const uint32_t Data, const int bits)
 }
 
 // -------------------------------------------------------------------------
+// crc16 = x^16 + x^15 + x^2 + 1
 // -------------------------------------------------------------------------
 
-int usbPkt::usbcrc16(const usb_signal_t data[], const unsigned len, const unsigned crcinit)
+int usbPkt::usbcrc16(const usbModel::usb_signal_t data[], const unsigned len, const unsigned crcinit)
 {
     unsigned crc = crcinit;
 
@@ -66,7 +62,7 @@ int usbPkt::usbcrc16(const usb_signal_t data[], const unsigned len, const unsign
     {
         for (int i = 0; i < 8; i++)
         {
-            crc = (crc << 1UL) ^ ((((crc & BIT16) ? 1 : 0) ^ ((data[byte].dp >> i) & 1)) ? POLY16 : 0);
+            crc = (crc << 1UL) ^ ((((crc & usbModel::BIT16) ? 1 : 0) ^ ((data[byte].dp >> i) & 1)) ? usbModel::POLY16 : 0);
         }
     }
 
@@ -74,9 +70,10 @@ int usbPkt::usbcrc16(const usb_signal_t data[], const unsigned len, const unsign
 }
 
 // -------------------------------------------------------------------------
+// crc5  =  x^5 +  x^2 + 1
 // -------------------------------------------------------------------------
 
-int usbPkt::usbcrc5(const usb_signal_t data[], const unsigned len, const int endbits, const unsigned crcinit )
+int usbPkt::usbcrc5(const usbModel::usb_signal_t data[], const unsigned len, const int endbits, const unsigned crcinit )
 {
     unsigned crc = crcinit;
 
@@ -85,7 +82,7 @@ int usbPkt::usbcrc5(const usb_signal_t data[], const unsigned len, const int end
         int bits = (bytes == (len - 1)) ? endbits : 8;
         for (int i = 0; i < bits; i++)
         {
-            crc = (crc << 1UL) ^ ((((crc & BIT5) ? 1 : 0) ^ ((data[bytes].dp >> i) & 1)) ? POLY16 : 0);
+            crc = (crc << 1UL) ^ ((((crc & usbModel::BIT5) ? 1 : 0) ^ ((data[bytes].dp >> i) & 1)) ? usbModel::POLY16 : 0);
         }
     }
 
@@ -96,7 +93,7 @@ int usbPkt::usbcrc5(const usb_signal_t data[], const unsigned len, const int end
 // NRZI encoding
 // -------------------------------------------------------------------------
 
-int usbPkt::nrziEnc(const usbPkt::usb_signal_t raw[], usbPkt::usb_signal_t nrzi[], const unsigned len, const int start)
+int usbPkt::nrziEnc(const usbModel::usb_signal_t raw[], usbModel::usb_signal_t nrzi[], const unsigned len, const int start)
 {
     int      state = start;
     uint32_t outputp = 0;
@@ -111,12 +108,12 @@ int usbPkt::nrziEnc(const usbPkt::usb_signal_t raw[], usbPkt::usb_signal_t nrzi[
     {
 
         // Run through each bit in the byte
-        for (int bit = 0; bit < NRZI_BITSPERBYTE; bit++)
+        for (int bit = 0; bit < usbModel::NRZI_BITSPERBYTE; bit++)
         {
             // A zero is a state change
-            if (!(raw[byte].dp & (NRZI_BYTELSBMASK << bit)))
+            if (!(raw[byte].dp & (usbModel::NRZI_BYTELSBMASK << bit)))
             {
-                state = ~state & NRZI_BYTELSBMASK;
+                state = ~state & usbModel::NRZI_BYTELSBMASK;
                 onescnt = 0;
             }
             // A one is no state change
@@ -129,16 +126,16 @@ int usbPkt::nrziEnc(const usbPkt::usb_signal_t raw[], usbPkt::usb_signal_t nrzi[
                 if (onescnt == 7)
                 {
                     state = ~state;
-                    outputp |= ( state & NRZI_BYTELSBMASK) << obit;
-                    outputm |= (~state & NRZI_BYTELSBMASK) << obit;
+                    outputp |= ( state & usbModel::NRZI_BYTELSBMASK) << obit;
+                    outputm |= (~state & usbModel::NRZI_BYTELSBMASK) << obit;
                     obit++;
                     bitcnt++;
                 }
             }
 
             // Output NRZI bit
-            outputp |= ( state & NRZI_BYTELSBMASK) << obit;
-            outputm |= (~state & NRZI_BYTELSBMASK) << obit;
+            outputp |= ( state & usbModel::NRZI_BYTELSBMASK) << obit;
+            outputm |= (~state & usbModel::NRZI_BYTELSBMASK) << obit;
             obit++;
             bitcnt++;
 
@@ -158,8 +155,8 @@ int usbPkt::nrziEnc(const usbPkt::usb_signal_t raw[], usbPkt::usb_signal_t nrzi[
     }
 
     // Add EOP
-    outputp |= SE0P << obit;
-    outputm |= SE0M << obit;
+    outputp |= usbModel::SE0P << obit;
+    outputm |= usbModel::SE0M << obit;
     obit += 3;
     bitcnt += 3;
 
@@ -187,7 +184,7 @@ int usbPkt::nrziEnc(const usbPkt::usb_signal_t raw[], usbPkt::usb_signal_t nrzi[
 //
 // -------------------------------------------------------------------------
 
-int usbPkt::nrziDec(const usb_signal_t nrzi[], usb_signal_t raw[], const int start)
+int usbPkt::nrziDec(const usbModel::usb_signal_t nrzi[], usbModel::usb_signal_t raw[], const int start)
 {
     int      ibyte     = 0;
     int      eofactive = 0;
@@ -199,7 +196,7 @@ int usbPkt::nrziDec(const usb_signal_t nrzi[], usb_signal_t raw[], const int sta
     uint32_t output    = 0;
     int      onecnt    = 0;
 
-    usb_signal_t currbit;
+    usbModel::usb_signal_t currbit;
 
     while (true)
     {
@@ -214,7 +211,7 @@ int usbPkt::nrziDec(const usb_signal_t nrzi[], usb_signal_t raw[], const int sta
             if (se && currbit.dp)
             {
                 USBERRMSG("nrziDec: seen SE1\n");
-                return USBERROR;
+                return usbModel::USBERROR;
             }
 
             // If receiving a potential EOP...
@@ -224,7 +221,7 @@ int usbPkt::nrziDec(const usb_signal_t nrzi[], usb_signal_t raw[], const int sta
                 if (eofactive == 1 && !se)
                 {
                     USBERRMSG("nrziDec: Bad EOP. SE0 not followed by another SE0\n");
-                    return USBERROR;
+                    return usbModel::USBERROR;
                 }
 
                 // If seen two SE0s, check this bit is a J
@@ -247,7 +244,7 @@ int usbPkt::nrziDec(const usb_signal_t nrzi[], usb_signal_t raw[], const int sta
                     else
                     {
                         USBERRMSG("nrziDec: Bad EOP. two SE0s not followed by a J (D+ = %d D- = %d)\n", currbit.dp, currbit.dm);
-                        return USBERROR;
+                        return usbModel::USBERROR;
                     }
                 }
             }
@@ -309,26 +306,26 @@ int usbPkt::nrziDec(const usb_signal_t nrzi[], usb_signal_t raw[], const int sta
 // Handshake and preamble packet generation
 // -------------------------------------------------------------------------
 
-int usbPkt::genUsbPkt(usb_signal_t buf[], const int pid)
+int usbPkt::genUsbPkt(usbModel::usb_signal_t buf[], const int pid)
 {
     int idx = 0;
 
     // Validate PID
     switch (pid)
     {
-    case PID_HSHK_ACK:
-    case PID_HSHK_NAK:
-    case PID_HSHK_NYET:
-    case PID_HSHK_STALL:
-    case PID_SPCL_PREAMB:
+    case usbModel::PID_HSHK_ACK:
+    case usbModel::PID_HSHK_NAK:
+    case usbModel::PID_HSHK_NYET:
+    case usbModel::PID_HSHK_STALL:
+    case usbModel::PID_SPCL_PREAMB:
         break;
     default:
         USBERRMSG("genUsbPkt: Bad PID (0x%x) seen for handshake generation.\n", pid);
-        return USBERROR;
+        return usbModel::USBERROR;
     }
 
     // SOP/Sync
-    rawbuf[idx].dp = SYNC;
+    rawbuf[idx].dp = usbModel::SYNC;
     rawbuf[idx].dm = ~rawbuf[idx].dp;
     idx++;
 
@@ -345,7 +342,7 @@ int usbPkt::genUsbPkt(usb_signal_t buf[], const int pid)
 // Token generation (not SOF)
 // -------------------------------------------------------------------------
 
-int usbPkt::genUsbPkt(usb_signal_t buf[], const int pid, const uint8_t addr, const uint8_t endp)
+int usbPkt::genUsbPkt(usbModel::usb_signal_t buf[], const int pid, const uint8_t addr, const uint8_t endp)
 {
     int idx = 0;
     unsigned crc;
@@ -353,31 +350,31 @@ int usbPkt::genUsbPkt(usb_signal_t buf[], const int pid, const uint8_t addr, con
     // Validate PID for this type of packet
     switch (pid)
     {
-    case PID_TOKEN_IN:
-    case PID_TOKEN_OUT:
-    case PID_TOKEN_SETUP:
+    case usbModel::PID_TOKEN_IN:
+    case usbModel::PID_TOKEN_OUT:
+    case usbModel::PID_TOKEN_SETUP:
         break;
     default:
         USBERRMSG("genUsbPkt: Bad PID (0x%x) seen for token generation.\n", pid);
-        return USBERROR;
+        return usbModel::USBERROR;
     }
 
     // Validate the address (0 to 127)
-    if (addr > MAXDEVADDR)
+    if (addr > usbModel::MAXDEVADDR)
     {
         USBERRMSG("genUsbPkt: Invalid token address (0x%x\n", addr);
-        return USBERROR;
+        return usbModel::USBERROR;
     }
 
     // Validate the endpoint
-    if (endp > MAXENDP)
+    if (endp > usbModel::MAXENDP)
     {
         USBERRMSG("genUsbPkt: Invalid token end point (0x%x\n", endp);
-        return USBERROR;
+        return usbModel::USBERROR;
     }
 
     // SOP/Sync
-    rawbuf[idx].dp = SYNC;
+    rawbuf[idx].dp = usbModel::SYNC;
     rawbuf[idx].dm = ~rawbuf[idx].dp;
     idx++;
 
@@ -408,7 +405,7 @@ int usbPkt::genUsbPkt(usb_signal_t buf[], const int pid, const uint8_t addr, con
 // SOF token generation
 // -------------------------------------------------------------------------
 
-int usbPkt::genUsbPkt(usb_signal_t buf[], const int pid, const uint16_t framenum)
+int usbPkt::genUsbPkt(usbModel::usb_signal_t buf[], const int pid, const uint16_t framenum)
 {
     int idx = 0;
     unsigned crc;
@@ -416,22 +413,22 @@ int usbPkt::genUsbPkt(usb_signal_t buf[], const int pid, const uint16_t framenum
     // Validate PID for this type of packet
     switch (pid)
     {
-    case PID_TOKEN_SOF:
+    case usbModel::PID_TOKEN_SOF:
         break;
     default:
         USBERRMSG("genUsbPkt: Bad PID (0x%x) seen for SOF generation.\n", pid);
-        return USBERROR;
+        return usbModel::USBERROR;
     }
 
     // Validate frame number
-    if (framenum > MAXFRAMENUM)
+    if (framenum > usbModel::MAXFRAMENUM)
     {
         USBERRMSG("genUsbPkt: Ivalid frame number (%d)\n", framenum);
-        return USBERROR;
+        return usbModel::USBERROR;
     }
 
     // SOP/Sync
-    rawbuf[idx].dp = SYNC;
+    rawbuf[idx].dp = usbModel::SYNC;
     rawbuf[idx].dm = ~rawbuf[idx].dp;
     idx++;
 
@@ -462,51 +459,51 @@ int usbPkt::genUsbPkt(usb_signal_t buf[], const int pid, const uint16_t framenum
 // Data Packet generation
 // -------------------------------------------------------------------------
 
-int usbPkt::genUsbPkt(usb_signal_t buf[], const int pid, const uint8_t data[], const unsigned len)
+int usbPkt::genUsbPkt(usbModel::usb_signal_t buf[], const int pid, const uint8_t data[], const unsigned len)
 {
     int idx = 0;
 
     // Validate PID for this type of packet
     switch (pid)
     {
-    case PID_DATA_0:
-    case PID_DATA_1:
-    case PID_DATA_2:
-    case PID_DATA_M:
+    case usbModel::PID_DATA_0:
+    case usbModel::PID_DATA_1:
+    case usbModel::PID_DATA_2:
+    case usbModel::PID_DATA_M:
         break;
     default:
         USBERRMSG("genUsbPkt: Bad PID (0x%x) seen for data packet generation.\n", pid);
-        return USBERROR;
+        return usbModel::USBERROR;
     }
 
     // Validate length
     switch (currspeed)
     {
-    case usb_speed_e::LS:
+    case usbModel::usb_speed_e::LS:
         if (len > 8)
         {
             USBERRMSG("genUsbPkt: Invalid data length for low speed (%d).\n", len);
-            return USBERROR;
+            return usbModel::USBERROR;
         }
         break;
-    case usb_speed_e::FS:
+    case usbModel::usb_speed_e::FS:
         if (len > 64)
         {
             USBERRMSG("genUsbPkt: Invalid data length for fast speed (%d).\n", len);
-            return USBERROR;
+            return usbModel::USBERROR;
         }
         break;
-    case usb_speed_e::HS:
+    case usbModel::usb_speed_e::HS:
         if (len > 512)
         {
             USBERRMSG("genUsbPkt: Invalid data length for high speed (%d).\n", len);
-            return USBERROR;
+            return usbModel::USBERROR;
         }
         break;
     }
 
     // SOP/Sync
-    rawbuf[idx].dp = SYNC;
+    rawbuf[idx].dp = usbModel::SYNC;
     rawbuf[idx].dm = ~rawbuf[idx].dp;
     idx++;
 
@@ -542,7 +539,7 @@ int usbPkt::genUsbPkt(usb_signal_t buf[], const int pid, const uint8_t data[], c
 // -------------------------------------------------------------------------
 // -------------------------------------------------------------------------
 
-int usbPkt::decodePkt(const usb_signal_t nrzibuf[], int& pid, uint32_t args[], uint8_t data[], int &databytes)
+int usbPkt::decodePkt(const usbModel::usb_signal_t nrzibuf[], int& pid, uint32_t args[], uint8_t data[], int &databytes)
 {
     databytes = 0;
 
@@ -551,112 +548,112 @@ int usbPkt::decodePkt(const usb_signal_t nrzibuf[], int& pid, uint32_t args[], u
     // NRZI decode
     int bitcnt = nrziDec(nrzibuf, rawbuf);
 
-    if (bitcnt < MINPKTSIZEBITS)
+    if (bitcnt < usbModel::MINPKTSIZEBITS)
     {
         USBERRMSG("%sdecodePkt: Invalid bit count returned from nrziDec (%d).\n", errbuf, bitcnt);
 
-        return USBERROR;
+        return usbModel::USBERROR;
     }
 
     // Extract PID
-    pid = rawbuf[PIDBYTEOFFSET].dp & 0xf;
-    uint8_t pidchk = (~rawbuf[PIDBYTEOFFSET].dp >> 4) & 0xf;
+    pid = rawbuf[usbModel::PIDBYTEOFFSET].dp & 0xf;
+    uint8_t pidchk = (~rawbuf[usbModel::PIDBYTEOFFSET].dp >> 4) & 0xf;
 
     // Check PID inverse is in top bits
     if (pid != pidchk)
     {
-        USBERRMSG("decodePkt: Invalid PID. Top nibble is not the inverse of bottom nibble (%d).\n", rawbuf[PIDBYTEOFFSET].dp);
-        return USBERROR;
+        USBERRMSG("decodePkt: Invalid PID. Top nibble is not the inverse of bottom nibble (%d).\n", rawbuf[usbModel::PIDBYTEOFFSET].dp);
+        return usbModel::USBERROR;
     }
 
     switch (pid)
     {
-    case PID_HSHK_ACK:
+    case usbModel::PID_HSHK_ACK:
         USBDISPPKT("  %s RX HNDSHK:  ACK\n", name.c_str());
         break;
-    case PID_HSHK_NAK:
+    case usbModel::PID_HSHK_NAK:
         USBDISPPKT("  %s RX HNDSHK:  NAK\n", name.c_str());
         break;
-    case PID_HSHK_STALL:
+    case usbModel::PID_HSHK_STALL:
         USBDISPPKT("  %s RX HNDSHK:  STALL\n", name.c_str());
         break;
-    case PID_HSHK_NYET:
+    case usbModel::PID_HSHK_NYET:
         USBDISPPKT("  %s RX HNDSHK:  NYET\n", name.c_str());
         break;
 
-    case PID_TOKEN_OUT:
-    case PID_TOKEN_IN:
-    case PID_TOKEN_SETUP:
-        args[ARGADDRIDX]    = rawbuf[ADDRBYTEOFFSET].dp & 0x7f;                                                 // Address
-        args[ARGENDPIDX]    = (rawbuf[ENDPBYTEOFFSET].dp >> 7) | ((rawbuf[ENDPBYTEOFFSET+1].dp & 0x7) << 1);    // ENDP
-        args[ARGTKNCRC5IDX] = rawbuf[CRC5BYTEOFFSET].dp >> 3;                                                   // CRC5
+    case usbModel::PID_TOKEN_OUT:
+    case usbModel::PID_TOKEN_IN:
+    case usbModel::PID_TOKEN_SETUP:
+        args[usbModel::ARGADDRIDX]    = rawbuf[usbModel::ADDRBYTEOFFSET].dp & 0x7f;                                                 // Address
+        args[usbModel::ARGENDPIDX]    = (rawbuf[usbModel::ENDPBYTEOFFSET].dp >> 7) | ((rawbuf[usbModel::ENDPBYTEOFFSET+1].dp & 0x7) << 1);    // ENDP
+        args[usbModel::ARGTKNCRC5IDX] = rawbuf[usbModel::CRC5BYTEOFFSET].dp >> 3;                                                   // CRC5
 
-        crc = usbcrc5(&rawbuf[ADDRBYTEOFFSET], 2, 3);
+        crc = usbcrc5(&rawbuf[usbModel::ADDRBYTEOFFSET], 2, 3);
 
-        if (args[ARGTKNCRC5IDX] != crc)
+        if (args[usbModel::ARGTKNCRC5IDX] != crc)
         {
             USBERRMSG("decodePkt: Bad CRC5 for token. Got 0x%x, expected 0x%x.\n",
-                args[ARGTKNCRC5IDX], crc);
-            return USBERROR;
+                args[usbModel::ARGTKNCRC5IDX], crc);
+            return usbModel::USBERROR;
         }
-        else if (pid == PID_TOKEN_OUT)
+        else if (pid == usbModel::PID_TOKEN_OUT)
         {
             USBDISPPKT("  %s RX TOKEN:   OUT\n    " FMT_DATA_GREY "addr=%d endp=%d" FMT_NORMAL "\n",
-                name.c_str(), args[ARGADDRIDX], args[ARGENDPIDX]);
+                name.c_str(), args[usbModel::ARGADDRIDX], args[usbModel::ARGENDPIDX]);
         }
-        else if (pid == PID_TOKEN_IN)
+        else if (pid == usbModel::PID_TOKEN_IN)
         {
             USBDISPPKT("  %s RX TOKEN:   IN\n    " FMT_DATA_GREY "addr=%d endp=%d" FMT_NORMAL "\n",
-                name.c_str(), args[ARGADDRIDX], args[ARGENDPIDX]);
+                name.c_str(), args[usbModel::ARGADDRIDX], args[usbModel::ARGENDPIDX]);
         }
         else
         {
             USBDISPPKT("  %s RX TOKEN:   SETUP\n    " FMT_DATA_GREY "addr=%d endp=%d" FMT_NORMAL "\n",
-                name.c_str(), args[ARGADDRIDX], args[ARGENDPIDX]);
+                name.c_str(), args[usbModel::ARGADDRIDX], args[usbModel::ARGENDPIDX]);
         }
         break;
 
-    case PID_TOKEN_SOF:
-        args[ARGFRAMEIDX]   = rawbuf[FRAMEBYTEOFFSET].dp | (rawbuf[FRAMEBYTEOFFSET+1].dp & 0x7) << 8;           // Frame number
-        args[ARGSOFCRC5IDX] = rawbuf[CRC5BYTEOFFSET].dp >> 3;                                                   // CRC5
+    case usbModel::PID_TOKEN_SOF:
+        args[usbModel::ARGFRAMEIDX]   = rawbuf[usbModel::FRAMEBYTEOFFSET].dp | (rawbuf[usbModel::FRAMEBYTEOFFSET+1].dp & 0x7) << 8;           // Frame number
+        args[usbModel::ARGSOFCRC5IDX] = rawbuf[usbModel::CRC5BYTEOFFSET].dp >> 3;                                                   // CRC5
 
-        crc = usbcrc5(&rawbuf[FRAMEBYTEOFFSET], 2, 3);
+        crc = usbcrc5(&rawbuf[usbModel::FRAMEBYTEOFFSET], 2, 3);
 
-        if (args[ARGSOFCRC5IDX] != crc)
+        if (args[usbModel::ARGSOFCRC5IDX] != crc)
         {
-            USBERRMSG("decodePkt: Bad CRC5 for SOF. Got 0x%x, expected 0x%x.\n", args[ARGTKNCRC5IDX], crc);
-            return USBERROR;
+            USBERRMSG("decodePkt: Bad CRC5 for SOF. Got 0x%x, expected 0x%x.\n", args[usbModel::ARGTKNCRC5IDX], crc);
+            return usbModel::USBERROR;
         }
 
         USBDISPPKT("  %s RX TOKEN:   SOF\n    " FMT_DATA_GREY "frame= %d" FMT_NORMAL "\n",
-            name.c_str(), args[ARGFRAMEIDX]);
+            name.c_str(), args[usbModel::ARGFRAMEIDX]);
 
         break;
 
-    case PID_DATA_0:
-    case PID_DATA_1:
+    case usbModel::PID_DATA_0:
+    case usbModel::PID_DATA_1:
         // Calulate the size of the data packet payload (total size in bytes minus SYNC, PID and CRC16)
-        databytes = (bitcnt / 8) - DATABYTEOFFSET - 2;
+        databytes = (bitcnt / 8) - usbModel::DATABYTEOFFSET - 2;
 
         // Extract CRC16
-        args[ARGCRC16IDX] = rawbuf[databytes + DATABYTEOFFSET].dp | (rawbuf[databytes + DATABYTEOFFSET + 1].dp << 8); // CRC16
+        args[usbModel::ARGCRC16IDX] = rawbuf[databytes + usbModel::DATABYTEOFFSET].dp | (rawbuf[databytes + usbModel::DATABYTEOFFSET + 1].dp << 8); // CRC16
 
         // Calculate CRC16
-        crc = usbcrc16(&rawbuf[DATABYTEOFFSET], databytes);
+        crc = usbcrc16(&rawbuf[usbModel::DATABYTEOFFSET], databytes);
 
         // Check CRCs match
-        if (crc != args[ARGCRC16IDX])
+        if (crc != args[usbModel::ARGCRC16IDX])
         {
-            USBERRMSG("decodePkt: Bad CRC16 for data packet. Got 0x%04x, expected 0x%04x.\n", args[ARGCRC16IDX], crc);
-            return USBERROR;
+            USBERRMSG("decodePkt: Bad CRC16 for data packet. Got 0x%04x, expected 0x%04x.\n", args[usbModel::ARGCRC16IDX], crc);
+            return usbModel::USBERROR;
         }
 
         // Copy validated memory to output buffer
-        USBDISPPKT("  %s RX DATA:    %s:", name.c_str(), pid == PID_DATA_0 ? "DATA0" : "DATA1");
+        USBDISPPKT("  %s RX DATA:    %s:", name.c_str(), pid == usbModel::PID_DATA_0 ? "DATA0" : "DATA1");
 
         for (int idx = 0; idx < databytes; idx++)
         {
-            data[idx] = rawbuf[DATABYTEOFFSET+idx].dp;
+            data[idx] = rawbuf[usbModel::DATABYTEOFFSET+idx].dp;
 
             if ((idx % 16) == 0)
             {
@@ -677,22 +674,20 @@ int usbPkt::decodePkt(const usb_signal_t nrzibuf[], int& pid, uint32_t args[], u
         break;
 
     // Unsupported
-    case PID_TOKEN_ERR:
-    case PID_TOKEN_SPLIT:
-    case PID_TOKEN_PING:
-    case PID_DATA_2:
-    case PID_DATA_M:
+    case usbModel::PID_TOKEN_ERR:
+    case usbModel::PID_TOKEN_SPLIT:
+    case usbModel::PID_TOKEN_PING:
+    case usbModel::PID_DATA_2:
+    case usbModel::PID_DATA_M:
         USBERRMSG("decodePkt: Unsupported packet type (0x%x)\n", pid);
-        return USBUNSUPPORTED;
+        return usbModel::USBUNSUPPORTED;
         break;
 
     default:
         USBERRMSG("decodePkt: Unrecognised packet type (0x%x)\n", pid);
-        return USBERROR;
+        return usbModel::USBERROR;
         break;
     }
 
-    USBERRMSG("");
-
-    return USBOK;
+    return usbModel::USBOK;
 }

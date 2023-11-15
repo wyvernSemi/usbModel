@@ -124,7 +124,7 @@ OSTYPE       :=$(shell uname)
 
 # Set OS specific variables between Linux and Windows (MinGW)
 ifeq (${OSTYPE}, Linux)
-  CFLAGS_SO   = -shared -lpthread -lrt -rdynamic
+  CFLAGS_SO   = -shared -lpthread -lrt -rdynamic -Wno-format-truncation
 else
   CFLAGS_SO   = -shared -Wl,-export-all-symbols
 endif

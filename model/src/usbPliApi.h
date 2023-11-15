@@ -21,9 +21,11 @@
 //
 // =============================================================
 
+#include <string>
 #include <stdint.h>
 
-#include "usbPkt.h"
+#include "usbCommon.h"
+#include "usbFormat.h"
 #include "usbMap.h"
 
 extern "C"
@@ -34,7 +36,7 @@ extern "C"
 #ifndef _USB_PLI_API_H_
 #define _USB_PLI_API_H_
 
-class usbPliApi : public usbPkt
+class usbPliApi
 {
 private:
 
@@ -55,7 +57,7 @@ public:
     //-------------------------------------------------------------
     //-------------------------------------------------------------
 
-    usbPliApi(const int nodeIn, std::string name = std::string("ENDP")) : node(nodeIn), usbPkt(name)
+    usbPliApi(const int nodeIn, std::string name = std::string("ENDP")) : node(nodeIn)
     {
     }
 
@@ -106,7 +108,7 @@ public:
     //-------------------------------------------------------------
     //-------------------------------------------------------------
 
-    void SendPacket(const usbPkt::usb_signal_t nrzi[], const int bitlen, const int delay = 50)
+    void SendPacket(const usbModel::usb_signal_t nrzi[], const int bitlen, const int delay = 50)
     {
         if (delay >= MINIMUMIDLE)
         {
@@ -157,7 +159,7 @@ public:
     //
     //-------------------------------------------------------------
 
-    int waitForPkt(usb_signal_t nrzi[])
+    int waitForPkt(usbModel::usb_signal_t nrzi[])
     {
         unsigned     line;
         bool         idle         = true;
@@ -175,19 +177,19 @@ public:
             line = readLineState();
 
             // If anything other than a J (when already idle) come out of suspend
-            if (suspended && (line == USB_K || line == USB_SE0))
+            if (suspended && (line == usbModel::USB_K || line == usbModel::USB_SE0))
             {
                 USBDISPPKT("Device activated from suspension\n");
                 suspended = false;
             }
 
             // If not in the middle of a reset detection and K seen, then line is not idle
-            if (!lookforreset && line == USB_K)
+            if (!lookforreset && line == usbModel::USB_K)
             {
                 idle = false;
             }
             // If idle and an SE0 seem then this may be a reset
-            else if (idle && line == USB_SE0)
+            else if (idle && line == usbModel::USB_SE0)
             {
                 lookforreset = true;
                 rstcount++;
@@ -197,7 +199,7 @@ public:
             if (lookforreset)
             {
                 // Another SE0 increments the count
-                if (line == USB_SE0)
+                if (line == usbModel::USB_SE0)
                 {
                     rstcount++;
                 }
@@ -211,11 +213,11 @@ public:
                     if (rstcount >= MINRSTCOUNT)
                     {
                         USBDISPPKT("Device reset\n");
-                        return USBRESET;
+                        return usbModel::USBRESET;
                     }
 
                     lookforreset = false;
-                    idle         = (line == USB_K) ? false : true;
+                    idle         = (line == usbModel::USB_K) ? false : true;
                 }
             }
 
@@ -237,7 +239,7 @@ public:
 
                 // If not yet seen an SE0, the keep a bit count for 3 bits for EOP
                 // (the decoding of the packet will detect any correupt EOP)
-                if (!eop_count && line == USB_SE0)
+                if (!eop_count && line == usbModel::USB_SE0)
                 {
                     eop_count++;
                 }
@@ -258,7 +260,7 @@ public:
                 {
                     USBDISPPKT("Device suspended\n");
                     suspended = true;
-                    return USBSUSPEND;
+                    return usbModel::USBSUSPEND;
                 }
             }
         } while (true);
@@ -300,7 +302,6 @@ public:
 
     void reset()
     {
-        usbPkt::reset();
         suspended = false;
     }
 

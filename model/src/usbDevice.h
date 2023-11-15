@@ -25,21 +25,25 @@
 
 
 #include <cstring>
+
+#include "usbCommon.h"
+#include "usbPkt.h"
 #include "usbPliApi.h"
 
-class usbDevice : public usbPliApi
+class usbDevice : public usbPliApi, public usbPkt
 {
 public:
 
-    static const int      PID_NO_CHECK             = PID_INVALID;
+    static const int      PID_NO_CHECK             = usbModel::PID_INVALID;
     static const int      DEFAULT_IDLE             = 36;
 
     // Constructor
     usbDevice (int nodeIn, std::string name = std::string(FMT_DEVICE "DEV " FMT_NORMAL)) :
         usbPliApi(nodeIn, name),
+        usbPkt(name),
         numendpoints(1),
-        remoteWakeup(USB_REMOTE_WAKEUP_OFF),
-        selfPowered(USB_NOT_SELF_POWERED),
+        remoteWakeup(usbModel::USB_REMOTE_WAKEUP_OFF),
+        selfPowered(usbModel::USB_NOT_SELF_POWERED),
         timeSinceLastSof(0)
     {
         reset();
@@ -54,7 +58,7 @@ private:
     void reset()
     {
         usbPliApi::reset();
-        devaddr   = USB_NO_ASSIGNED_ADDR;
+        devaddr   = usbModel::USB_NO_ASSIGNED_ADDR;
     }
 
     // Methods for sending packets back towards the host
@@ -73,7 +77,7 @@ private:
     int          processSOF            (const uint32_t args[], const int      idle = DEFAULT_IDLE);
  
     // Method for handling device requests
-    int          handleDevReq          (const setupRequest* sreq, const int idle = DEFAULT_IDLE);
+    int          handleDevReq          (const usbModel::setupRequest* sreq, const int idle = DEFAULT_IDLE);
 
     // Internal device state
     int          devaddr;
@@ -84,8 +88,8 @@ private:
     int          timeSinceLastSof;
 
     // Internal buffers for use by class methods
-    uint8_t      rxdata [usbPkt::MAXBUFSIZE];
-    usb_signal_t nrzi   [usbPkt::MAXBUFSIZE];
-    char         sbuf   [usbPkt::ERRBUFSIZE];
+    uint8_t                rxdata [usbModel::MAXBUFSIZE];
+    usbModel::usb_signal_t nrzi   [usbModel::MAXBUFSIZE];
+    char                   sbuf   [usbModel::ERRBUFSIZE];
 
 };

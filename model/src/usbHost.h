@@ -26,20 +26,25 @@
 #ifndef _USB_HOST_H_
 #define _USB_HOST_H_
 
+#include <cstring>
+
+#include "usbCommon.h"
+#include "usbPkt.h"
 #include "usbPliApi.h"
 
-class usbHost  : public usbPliApi
+class usbHost  : public usbPliApi, public usbPkt
 {
 public:
 
-    static const int DEFAULTIDLEDELAY = 36; // 3us at 12MHz
+    static const int DEFAULTIDLEDELAY = 4; // 0.33us at 12MHz
 
     // -------------------------------------------------------------------------
     // Constructor
     // -------------------------------------------------------------------------
 
     usbHost (int nodeIn, std::string name = std::string(FMT_HOST "HOST" FMT_NORMAL)) :
-        usbPliApi(nodeIn, name)
+        usbPliApi(nodeIn, name),
+        usbPkt(name)
     {
     }
 
@@ -47,26 +52,31 @@ public:
     // Public methods
     // -------------------------------------------------------------------------
 public:
-    int  getDeviceStatus      (const uint8_t  addr,     const uint8_t  endp,           uint16_t &status,    const unsigned idle = DEFAULTIDLEDELAY);
-    int  getDeviceDescriptor  (const uint16_t descType, const uint16_t wLength,        uint16_t langId = 0);
+    int  getDeviceStatus      (const uint8_t  addr,    const uint8_t  endp,           uint16_t &status,    const unsigned idle = DEFAULTIDLEDELAY);
+    int  getDeviceDescriptor  (const uint8_t  addr,    const uint8_t  endp,           uint8_t data[],      const uint16_t reqlength,
+                                     uint16_t &rxlen,  const bool     chklen = true,  const unsigned idle = DEFAULTIDLEDELAY);
     
     // -------------------------------------------------------------------------
     // Private methods
     // -------------------------------------------------------------------------
 private:
-    void sendTokenToDevice    (const int     pid,      const uint8_t addr,     const uint8_t  endp,       const unsigned idle = DEFAULTIDLEDELAY);
-    int  sendDataToDevice     (const int     datatype, const uint8_t data[],   const int      len,        const unsigned idle = DEFAULTIDLEDELAY);
-    int  getInData            (const int     expPID,         uint8_t data[],         int      &databytes, const unsigned idle = DEFAULTIDLEDELAY);
-    int  sendGetStatusRequest (const uint8_t addr,     const uint8_t endp,                                const unsigned idle = DEFAULTIDLEDELAY);
+    void sendTokenToDevice    (const int     pid,      const uint8_t  addr,   const uint8_t  endp,       const unsigned idle = DEFAULTIDLEDELAY);
+    int  sendDataToDevice     (const int     datatype, const uint8_t  data[], const int      len,        const unsigned idle = DEFAULTIDLEDELAY);
+    int  getDataFromDevice    (const int     expPID,         uint8_t  data[],       int      &databytes, const unsigned idle = DEFAULTIDLEDELAY);
+    int  sendGetStatusRequest (const uint8_t addr,     const uint8_t  endp,                              const unsigned idle = DEFAULTIDLEDELAY);
+    int  sendGetDevDescRequest(const uint8_t addr,     const uint8_t  endp,   const uint16_t length,     const unsigned idle = DEFAULTIDLEDELAY);
+    int  sendDeviceRequest    (const uint8_t addr,     const uint8_t  endp,
+                               const uint8_t request,  const uint16_t length, const uint16_t value = 0,  const uint16_t index = 0,
+                               const unsigned idle = DEFAULTIDLEDELAY);
 
     // -------------------------------------------------------------------------
     // Internal private state
     // -------------------------------------------------------------------------
 private:
     // Internal buffers for use by class methods
-    usb_signal_t nrzi   [usbPliApi::MAXBUFSIZE];
-    uint8_t      rxdata [usbPliApi::MAXBUFSIZE];
-    char         sbuf   [ERRBUFSIZE];
+    usbModel::usb_signal_t nrzi   [usbModel::MAXBUFSIZE];
+    uint8_t                rxdata [usbModel::MAXBUFSIZE];
+    char                   sbuf   [usbModel::ERRBUFSIZE];
 
 };
 

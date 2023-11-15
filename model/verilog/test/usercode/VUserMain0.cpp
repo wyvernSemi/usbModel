@@ -32,8 +32,6 @@
 
 static int node = 0;
 
-static usbPliApi::usb_signal_t nrzi[usbPliApi::MAXBUFSIZE];
-
 //-------------------------------------------------------------
 // VUserMain0()
 //
@@ -41,33 +39,36 @@ static usbPliApi::usb_signal_t nrzi[usbPliApi::MAXBUFSIZE];
 
 extern "C" void VUserMain0()
 {
-    int                  numbits;
+    unsigned             linestate;
     uint16_t             dev_status;
     uint8_t              addr         = 0;
     uint8_t              endp         = 0;
 
-    int                  pid;
-    uint32_t             args[4];
-    uint8_t              rxdata[4096];
-    int                  databytes;
-    char                 sbuf[1024];
-
-    // Create interface object to usbModel
+    // Create host interface object to usbModel
     usbHost host(node);
 
     // Wait for reset to be deasserted
     host.waitOnNotReset();
 
     host.SendIdle(100);
-
-    host.getDeviceStatus(addr, endp, dev_status);
-
-    host.SendIdle(100);
-
-    fprintf(stderr, "\nVUserMain0: received device status of 0x%04x\n\n", dev_status);
-
+    
+    // Check that there is a connected device and it's a full speed endpoint
+    if ((linestate = host.readLineState()) != usbModel::USB_J)
+    {
+        fprintf(stderr, "\nVUserMain0: ***ERROR: USB line state (%s) does not indicate a full speed device connected\n",
+            (linestate == usbModel::USB_K) ? "K" : (linestate == usbModel::USB_SE0) ? "SE0" : (linestate == usbModel::USB_SE1) ? "SE1" : "?");
+    }
+    else
+    {
+        host.getDeviceStatus(addr, endp, dev_status);
+        host.SendIdle(100);
+            
+        fprintf(stderr, "\nVUserMain0: received device status of 0x%04x\n\n", dev_status);
+    }
+    
     // Halt the simulation
     host.haltSimulation();
+    
 
 }
 

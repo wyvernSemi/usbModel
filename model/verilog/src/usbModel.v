@@ -25,10 +25,10 @@
 `include "usbModel.vh"
 
 module usbModel
-           #(parameter DEVICE    = 1,
-             parameter FULLSPEED = 1,
-             parameter NODENUM   = 0,
-             parameter GUI_RUN   = 0
+           #(parameter DEVICE    = 1,  // Select whether a device (1) or host (0)
+             parameter FULLSPEED = 1,  // Select whether fullspeed (1) or lowspeed (0)
+             parameter NODENUM   = 0,  // Node number. Must be unique for each usbModel instantiation and any other VProc based component.
+             parameter GUI_RUN   = 0   // Flag whether running in a GUI (1) or not (0)
             )
             (
              input clk,
@@ -38,6 +38,9 @@ module usbModel
              inout linem
             );
 
+// --------------------------------
+// Register definitions
+// --------------------------------
 reg          oen;
 reg          nopullup;
 reg          dp;
@@ -47,6 +50,12 @@ reg          dm;
 reg   [31:0] rdata;
 reg          updateresp;
 
+integer      clkcount;
+
+// --------------------------------
+// Signal definitions
+// --------------------------------
+
 wire  [31:0] addr;
 wire  [31:0] wdata;
 wire         wr, rd;
@@ -54,20 +63,11 @@ wire         wack              = 1'b1;
 wire         rack              = 1'b1;
 wire  [31:0] node              = NODENUM;
 wire         update;
+wire         doen;
 
-integer      clkcount;
-integer      i;
-
-
-initial
-begin
-  oen                          = 1'b0;
-  dp                           = 1'b1;
-  dm                           = 1'b0;
-  nopullup                     = 1'b0;
-  updateresp                   = 1'b1;
-  clkcount                     = 0;
-end
+// --------------------------------
+// Combinatorial logic
+// --------------------------------
 
 // Speed pullup control. Device side pullup can be disconnected in highspeed mode,
 // after chirp negotiation and switch to HS, to balance line.
@@ -80,13 +80,24 @@ assign (pull1, highz0) linem   = DEVICE & (!FULLSPEED & !nopullup);
 assign (highz1, weak0) linep   = DEVICE | (nopullup);
 assign (highz1, weak0) linem   = DEVICE | (nopullup);
 
-wire doen;
-
 assign #1 doen = oen;
 
 // USB line driver logic
 assign linep                   = (doen & oen) ? dp : 1'bZ;
 assign linem                   = (doen & oen) ? dm : 1'bZ;
+
+// --------------------------------
+// Initial process
+// --------------------------------
+initial
+begin
+  oen                          = 1'b0;
+  dp                           = 1'b1;
+  dm                           = 1'b0;
+  nopullup                     = 1'b0;
+  updateresp                   = 1'b1;
+  clkcount                     = 0;
+end
 
  // --------------------------------
  // Virtual Processor
@@ -105,18 +116,27 @@ assign linem                   = (doen & oen) ? dm : 1'bZ;
            .Node               (node[3:0])
            );
 
+// --------------------------------
 // Keep a clock tick count
+// --------------------------------
 always @(posedge clk)
 begin
-    clkcount     <= clkcount + 1;
+  clkcount                     <= clkcount + 1;
 end
 
+// --------------------------------
+// Process to map VProc accesses
+// to registers and simulation
+// control.
+// --------------------------------
+ 
 // Addressable read/write state from VProc
 always @(update)
 begin
   // Default read data value
   rdata                        = 32'h00000000;
   
+  // Process when an access is valid
   if (wr === 1'b1 || rd === 1'b1)
   begin
     case(addr)
@@ -163,7 +183,7 @@ begin
     endcase
   end
 
-    // Finished processing for this update, so acknowledge to VProc (invert updateresp)
+    // Finished processing for this update, so acknowledge to VProc (by invertint updateresp)
     updateresp = ~updateresp;
 end
 
