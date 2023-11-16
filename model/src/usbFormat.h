@@ -27,6 +27,8 @@
 #ifndef _USB_FORMAT_H_
 #define _USB_FORMAT_H_
 
+#include "usbCommon.h"
+
 // Definitions for use in formatted packet information display
 
 //#define USBNOFORMAT
@@ -104,11 +106,20 @@
 #define USBDISPPKT(...) {}
 #endif
 
+//#define ENABLEDEVDEBUG
+
 // Macro for displaying development debug messages. Default disabled
 #ifdef ENABLEDEVDEBUG
 #define USBDEVDEBUG(...) {fprintf(stderr, __VA_ARGS__);}
 #else
 #define USBDEVDEBUG(...) {}
 #endif
+
+namespace usbModel
+{
+const char* fmtDecriptorType (const uint8_t  desc);
+void        fmtDevDescriptor (char sbuf[], const uint8_t rawdata[], const int maxstrsize = ERRBUFSIZE);
+const char* fmtLineState     (const unsigned linestate);
+}
 
 #endif

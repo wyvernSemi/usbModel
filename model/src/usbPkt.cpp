@@ -121,16 +121,6 @@ int usbPkt::nrziEnc(const usbModel::usb_signal_t raw[], usbModel::usb_signal_t n
             {
                 // Keep count of the number of consecutive 1s
                 onescnt++;
-
-                // If about to output a seventh 1, stuff an extra 0 in the output (state change)
-                if (onescnt == 7)
-                {
-                    state = ~state;
-                    outputp |= ( state & usbModel::NRZI_BYTELSBMASK) << obit;
-                    outputm |= (~state & usbModel::NRZI_BYTELSBMASK) << obit;
-                    obit++;
-                    bitcnt++;
-                }
             }
 
             // Output NRZI bit
@@ -139,8 +129,21 @@ int usbPkt::nrziEnc(const usbModel::usb_signal_t raw[], usbModel::usb_signal_t n
             obit++;
             bitcnt++;
 
+            // If seen 6 ones, stuff an extra 0 in the output (state change)
+            if (onescnt == usbModel::MAXONESLENGTH)
+            {
+                USBDEVDEBUG("==> nrziEnc: stuffing bit (%d)\n", obit);
+                state = ~state;
+                onescnt = 0;
+
+                outputp |= ( state & usbModel::NRZI_BYTELSBMASK) << obit;
+                outputm |= (~state & usbModel::NRZI_BYTELSBMASK) << obit;
+                obit++;
+                bitcnt++;
+            }
+
             // If output shift has a whole byte or more, send to output
-            if (obit >= 8)
+            while (obit >= 8)
             {
                 nrzi[obyte].dp = (uint8_t)outputp;
                 nrzi[obyte].dm = (uint8_t)outputm;
@@ -258,35 +261,28 @@ int usbPkt::nrziDec(const usbModel::usb_signal_t nrzi[], usbModel::usb_signal_t 
             // If not processing an EOF...
             if (!eofactive)
             {
-                // Add decoded current bit to output: change = 0, same = 1
-                output |= ((lastbit ^ currbit.dp) ? 0 : 1) << obit;
-
-                // If not at a bit-stuffed point ...
-                if (onecnt != 6)
+                if (onecnt < usbModel::MAXONESLENGTH)
                 {
+                    // Add decoded current bit to output: change = 0, same = 1
+                    output |= ((lastbit ^ currbit.dp) ? 0 : 1) << obit;
+
                     // Increment count of bits on output
                     obit++;
                     bitcount++;
-
-                    // If a 1, increment onecnt
-                    if (currbit.dp)
-                    {
-                        onecnt++;
-                    }
-                    // If a zero, clear onecnt
-                    else
-                    {
-                        onecnt = 0;
-                    }
                 }
-                // At bit stuff point, clear onecnt. Not incrementing obit and bitcount deletes the stuffed bit
-                else
+
+                // If a 0, reset the onecnt
+                if (lastbit ^ currbit.dp)
                 {
                     onecnt = 0;
                 }
+                else
+                {
+                    onecnt++;
+                }
 
                 // If enough bits for a byte on the output, place in the output buffer
-                if (obit >= 8)
+                while (obit >= 8)
                 {
                     raw[obyte].dp = output & 0xff;
                     output >>= 8;
@@ -463,6 +459,8 @@ int usbPkt::genUsbPkt(usbModel::usb_signal_t buf[], const int pid, const uint8_t
 {
     int idx = 0;
 
+    USBDEVDEBUG("==> genUsbPkt: pid=0x%x len=%d\n", pid, len);
+
     // Validate PID for this type of packet
     switch (pid)
     {
@@ -522,6 +520,11 @@ int usbPkt::genUsbPkt(usbModel::usb_signal_t buf[], const int pid, const uint8_t
 
     // CRC16 over data
     unsigned crc = usbcrc16(&rawbuf[2], len);
+
+    USBDEVDEBUG("    ");
+    for (int i = 0; i < len; i++)
+        USBDEVDEBUG("%02x ", rawbuf[i+2].dp);
+    USBDEVDEBUG("\n    crc=0x%04x\n", crc);
 
     rawbuf[idx].dp = crc & 0xff;
     rawbuf[idx].dm = ~rawbuf[idx].dp;
@@ -645,11 +648,17 @@ int usbPkt::decodePkt(const usbModel::usb_signal_t nrzibuf[], int& pid, uint32_t
         if (crc != args[usbModel::ARGCRC16IDX])
         {
             USBERRMSG("decodePkt: Bad CRC16 for data packet. Got 0x%04x, expected 0x%04x.\n", args[usbModel::ARGCRC16IDX], crc);
+            
+            USBDEVDEBUG("    \n");
+            for (int i = 0; i < databytes+2; i++)
+                USBDEVDEBUG("%02x ", rawbuf[usbModel::DATABYTEOFFSET+i].dp);
+            USBDEVDEBUG("\n");
+            
             return usbModel::USBERROR;
         }
 
         // Copy validated memory to output buffer
-        USBDISPPKT("  %s RX DATA:    %s:", name.c_str(), pid == usbModel::PID_DATA_0 ? "DATA0" : "DATA1");
+        USBDISPPKT("  %s RX DATA:    %s", name.c_str(), pid == usbModel::PID_DATA_0 ? "DATA0" : "DATA1");
 
         for (int idx = 0; idx < databytes; idx++)
         {

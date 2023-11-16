@@ -63,13 +63,13 @@ int usbHost::getDeviceDescriptor (const uint8_t  addr,   const uint8_t  endp,
                                         uint8_t  data[], const uint16_t reqlen, uint16_t &rxlen,
                                   const bool     chklen, const unsigned idle)
 {
-    int error         = usbModel::USBOK;
-    int receivedbytes = 0;
-    int databytes;
+    int      error         = usbModel::USBOK;
+    int      receivedbytes = 0;
+    int      databytes;
     
     
     // Send out the request
-    if (sendGetDevDescRequest(addr, endp, idle) != usbModel::USBOK)
+    if (sendGetDevDescRequest(addr, endp, reqlen, idle) != usbModel::USBOK)
     {
         error = usbModel::USBERROR;
     }
@@ -89,7 +89,7 @@ int usbHost::getDeviceDescriptor (const uint8_t  addr,   const uint8_t  endp,
             {
                 receivedbytes += databytes;
             }
-        } while (receivedbytes < reqlen);
+        } while ((receivedbytes < reqlen && receivedbytes < ((usbModel::deviceDesc*)rxdata)->bLength));
         
         if (chklen && receivedbytes != reqlen)
         {
@@ -122,9 +122,12 @@ void usbHost::sendTokenToDevice (const int pid, const uint8_t addr, const uint8_
 int usbHost::sendDataToDevice (const int datatype, const uint8_t data[], const int len, const unsigned idle)
 {
     int error = usbModel::USBOK;
+    
+    USBDEVDEBUG("==> sendDataToDevice (datatype=0x%02x len=%d)\n", datatype, len);
 
     if (datatype != usbModel::PID_DATA_0 && datatype != usbModel::PID_DATA_1)
     {
+        USBERRMSG ("***ERROR: sendDataToDevice: bad pid (0x%02x) when sending data\n", datatype);
         error = usbModel::USBERROR;
     }
     else
@@ -151,9 +154,9 @@ int usbHost::getDataFromDevice(const int expPID, uint8_t data[], int &databytes,
 
     if (decodePkt(nrzi, pid, args, data, databytes) != usbModel::USBOK)
     {
-        USBDEVDEBUG ("***ERROR: getInData: received bad packet waiting for data\n");
+        USBERRMSG ("***ERROR: getInData: received bad packet waiting for data\n");
         getUsbErrMsg(sbuf);
-        USBDEVDEBUG ("%s\n", sbuf);
+        USBERRMSG ("%s\n", sbuf);
         error = usbModel::USBERROR;
     }
     else
@@ -166,7 +169,7 @@ int usbHost::getDataFromDevice(const int expPID, uint8_t data[], int &databytes,
         }
         else
         {
-            USBDEVDEBUG ("***ERROR: getInData: received unexpected packet ID waiting for data (0x%02x)\n", pid);
+            USBERRMSG ("***ERROR: getInData: received unexpected packet ID waiting for data (0x%02x)\n", pid);
             error = usbModel::USBERROR;
         }
     }
@@ -181,6 +184,8 @@ int usbHost::sendDeviceRequest(const uint8_t  addr,    const uint8_t  endp,
                                const unsigned idle)
 {
     int                  error = usbModel::USBOK;
+    
+    USBDEVDEBUG("==> sendDeviceRequest (%d %d 0x%02x %d 0x%04x %d %d)\n", addr, endp, request, length, value, index, idle);
 
     int                  pid;
     int                  databytes;
@@ -206,16 +211,16 @@ int usbHost::sendDeviceRequest(const uint8_t  addr,    const uint8_t  endp,
 
         if (decodePkt(nrzi, pid, args, rxdata, databytes) != usbModel::USBOK)
         {
-            USBDEVDEBUG("***ERROR: sendGetStatusRequest: received bad packet waiting for ACK\n");
+            USBERRMSG("***ERROR: sendGetStatusRequest: received bad packet waiting for ACK\n");
             getUsbErrMsg(sbuf);
-            USBDEVDEBUG("%s\n", sbuf);
+            USBERRMSG("%s\n", sbuf);
             error = usbModel::USBERROR;
             break;
         }
 
         if (pid != usbModel::PID_HSHK_ACK && pid != usbModel::PID_HSHK_NAK)
         {
-            USBDEVDEBUG("***ERROR: sendGetStatusRequest: received unexpected packet ID (0x%02x)\n", pid);
+            USBERRMSG("***ERROR: sendGetStatusRequest: received unexpected packet ID (0x%02x)\n", pid);
             break;
         }
 
@@ -237,5 +242,9 @@ int usbHost::sendGetStatusRequest(const uint8_t addr, const uint8_t endp, const 
 
 int usbHost::sendGetDevDescRequest(const uint8_t addr, const uint8_t endp, const uint16_t length, const unsigned idle)
 {
-    return sendDeviceRequest(addr, endp, usbModel::USB_REQ_GET_DESCRIPTOR, length);
+    uint16_t devtype = usbModel::DEVICE_DESCRIPTOR_TYPE;
+    
+    devtype <<= 8;
+    
+    return sendDeviceRequest(addr, endp, usbModel::USB_REQ_GET_DESCRIPTOR, length, usbModel::DEVICE_DESCRIPTOR_TYPE << 8);
 }

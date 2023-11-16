@@ -42,7 +42,7 @@ int usbDevice::waitForExpectedPacket(const int pktType, int &pid, uint32_t args[
     int status;
     int numbits;
 
-    USBDEVDEBUG ( "==> waitForExpectedPacket: waiting for a packet (0x%02x)\n", pid);
+    USBDEVDEBUG ( "==> waitForExpectedPacket: waiting for a packet (0x%02x)\n", pktType);
 
     while (true)
     {
@@ -60,7 +60,11 @@ int usbDevice::waitForExpectedPacket(const int pktType, int &pid, uint32_t args[
 
         if (decodePkt(nrzi, pid, args, data, databytes) != usbModel::USBOK)
         {
-            USBDEVDEBUG ( "==> waitForExpectedPacket: seen bad packet\n");
+            USBDEVDEBUG ( "==> waitForExpectedPacket: seen bad packet\n%s    ", errbuf);
+            for(int i = 0; i < databytes; i++)
+                USBDEVDEBUG("%02x ", data[i]);
+            USBDEVDEBUG("\n");
+
             // Ignore any packets that have errors
             if (ignorebadpkts)
             {
@@ -68,7 +72,6 @@ int usbDevice::waitForExpectedPacket(const int pktType, int &pid, uint32_t args[
             }
             else
             {
-                USBERRMSG("waitForExpectedPacket: seen bad packet\n");
                 return usbModel::USBERROR;
             }
         }
@@ -211,10 +214,11 @@ int usbDevice::processControl(const uint32_t addr, const uint32_t endp, const in
         USBDEVDEBUG ( "Waiting for DATA0\n");
         if (waitForExpectedPacket(usbModel::PID_DATA_0, pid, args, rxdata, databytes) != usbModel::USBOK)
         {
+            USBDEVDEBUG("%s", errbuf);
             return usbModel::USBERROR;
         }
 
-        USBDEVDEBUG ( "Send ACK\n");
+        USBDEVDEBUG ( "==> Send ACK\n");
 
         // Generate an ACK handshake for the DATA0 packet
         sendPktToHost(usbModel::PID_HSHK_ACK, idle);
@@ -256,25 +260,16 @@ int usbDevice::handleDevReq(const usbModel::setupRequest* sreq, const int idle)
     int                  databytes;
     int                  datasize;
 
-   // USBDEVDEBUG ( "==> handleDevReq (0x%x 0x%04x)\n", sreq->bRequest, sreq->wLength);
+    uint8_t              desctype;
+    uint8_t              descidx;
+
+    USBDEVDEBUG ( "==> handleDevReq (bRequest=0x%x wValue=0x%04x wLength=0x%04x)\n", sreq->bRequest, sreq->wValue, sreq->wLength);
+
+    //return usbModel::USBOK;
 
     switch(sreq->bRequest)
     {
     case usbModel::USB_REQ_GET_STATUS:
-
-        // Check request type is a "device get" type
-        if (sreq->bmRequestType != usbModel::USB_DEV_REQTYPE_GET)
-        {
-            USBERRMSG("handleDevReq: Received unexpected bmRequestType with GET_STATUS (0x%02x)\n", sreq->bmRequestType);
-            return usbModel::USBERROR;
-        }
-
-        // Check get status length is always 2
-        if (sreq->wLength != 2)
-        {
-            USBERRMSG("handleDevReq: Received unexpected GET_STATUS length (got 0x%02x, expected 0x%02x)\n", sreq->wLength, 2);
-            return usbModel::USBERROR;
-        }
 
         // Construct status data
         uint8_t buf[2];
@@ -282,53 +277,69 @@ int usbDevice::handleDevReq(const usbModel::setupRequest* sreq, const int idle)
         buf[1]   = 0;
         datasize = 2;
 
-        USBDEVDEBUG ("==> handleDevReq: waiting for IN token\n");
+        // Construct a formatted output string
+        snprintf(sbuf, usbModel::ERRBUFSIZE,"  %s RX DEV REQ: GET STATUS\n    " FMT_DATA_GREY "remWkup=%d selfPwd=%d" FMT_NORMAL "\n",
+                 name.c_str(),
+                 remoteWakeup ? 1 : 0,
+                 selfPowered  ? 1 : 0);
 
-        if (waitForExpectedPacket(usbModel::PID_TOKEN_IN, pid, args, rxdata, databytes) != usbModel::USBOK)
-        {
-            return usbModel::USBERROR;
-        }
-        else
-        {
-            USBDEVDEBUG ( "Seen GET_STATUS request\n");
-
-            while (true)
-            {
-                // Send DATA1 packet
-                sendPktToHost(usbModel::PID_DATA_1, buf, datasize, idle);
-
-                USBDISPPKT("  %s RX DEV REQ: GET STATUS\n    " FMT_DATA_GREY "remWkup=%d selfPwd=%d" FMT_NORMAL "\n",
-                    name.c_str(), remoteWakeup ? 1 : 0, selfPowered ? 1 : 0);
-
-                // Wait for acknowledge (either ACK or NAK)
-                if (waitForExpectedPacket(PID_NO_CHECK, pid, args, rxdata, databytes) != usbModel::USBOK)
-                {
-                    return usbModel::USBERROR;
-                }
-
-                // If ACK then end of transaction
-                if (pid == usbModel::PID_HSHK_ACK)
-                {
-                    USBDEVDEBUG("==> handleDevReq: seen ACK for DATA1\n");
-                    break;
-                }
-                // Unexpected PID in not NAK. NAK cause loop to send again, so no action.
-                else if (pid != usbModel::PID_HSHK_NAK)
-                {
-                    return usbModel::USBERROR;
-                }
-            }
-        }
+        // Send the response to the GET_STATUS command
+        return sendGetResp (sreq, buf, datasize, sbuf);
         break;
 
     case usbModel::USB_REQ_CLEAR_FEATURE:
         break;
+
     case usbModel::USB_REQ_SET_FEATURE:
         break;
+
     case usbModel::USB_REQ_SET_ADDRESS:
         break;
+
     case usbModel::USB_REQ_GET_DESCRIPTOR:
-        break;
+
+        // Extract the descriptor type (upper bytes) and index (lower byte)
+        // from the wValue field.
+        desctype = sreq->wValue >> 8;
+        descidx  = sreq->wValue & 0xff;
+
+        // Select on the requested descriptor type
+        switch(desctype)
+        {
+        case usbModel::DEVICE_DESCRIPTOR_TYPE:
+
+            // Set returned data size to be the whole of the descriptor if this is smaller than requested length,
+            // else return the requested length
+            datasize = (sreq->wLength > sizeof(usbModel::deviceDesc)) ? sizeof(usbModel::deviceDesc) : sreq->wLength;
+
+            // Construct a formatted output string
+            snprintf(sbuf, usbModel::ERRBUFSIZE,"  %s RX DEV REQ: GET DEVICE DESCRIPTOR (wLength = %d)\n", name.c_str(), sreq->wLength);
+
+            // Send the response to the GET_DESCRIPTOR (DEVICE) command
+            return sendGetResp(sreq, (uint8_t*)&devdesc, datasize, sbuf);
+            break;
+
+        case usbModel::CONFIG_DESCRIPTOR_TYPE:
+            break;
+
+        case usbModel::STRING_DESCRIPTOR_TYPE:
+            break;
+
+        case usbModel::IF_DESCRIPTOR_TYPE:
+            break;
+
+        case usbModel::EP_DESCRIPTOR_TYPE:
+            break;
+
+        case usbModel::CS_IF_DESCRIPTOR_TYPE:
+            break;
+
+        default:
+            USBERRMSG("handleDevReq: Received unexpected wValue descriptor type (0x%02x)\n", sreq->wValue);
+            return usbModel::USBERROR;
+            break;
+        }
+
     case usbModel::USB_REQ_SET_DESCRIPTOR:
         break;
     case usbModel::USB_REQ_GET_CONFIG:
@@ -339,6 +350,100 @@ int usbDevice::handleDevReq(const usbModel::setupRequest* sreq, const int idle)
         // Generate a STALL handshake if an unknown bRequest
         sendPktToHost(usbModel::PID_HSHK_STALL, idle);
         break;
+    }
+
+    return usbModel::USBOK;
+}
+
+
+//-------------------------------------------------------------
+//-------------------------------------------------------------
+
+int usbDevice::sendGetResp (const usbModel::setupRequest* sreq, const uint8_t data[], const int databytes, const char* fmtstr, const int idle)
+{
+    int                  pid;
+    uint32_t             args[4];
+    int                  datasize;
+    int                  numbytes;
+
+    int datasent       = 0;
+    int currdatapid    = usbModel::PID_DATA_1;
+
+    USBDEVDEBUG("==> sendGetResp: databytes=%d\n", databytes);
+
+    // Check request type is a "device get" type
+    if (sreq->bmRequestType != usbModel::USB_DEV_REQTYPE_GET)
+    {
+        USBERRMSG("getResp: Received unexpected bmRequestType with a GET command (0x%02x)\n", sreq->bmRequestType);
+        return usbModel::USBERROR;
+    }
+
+    USBDEVDEBUG ("==> sendGetResp: waiting for IN token\n");
+
+    if (waitForExpectedPacket(usbModel::PID_TOKEN_IN, pid, args, rxdata, numbytes) != usbModel::USBOK)
+    {
+        return usbModel::USBERROR;
+    }
+    else
+    {
+        while (true)
+        {
+            int remaining_data = databytes - datasent;
+
+            if (remaining_data > devdesc.bMaxPacketSize)
+            {
+                datasize  = devdesc.bMaxPacketSize;
+                datasent += datasize;
+            }
+            else
+            {
+                if (remaining_data > 0)
+                {
+                    datasize  = remaining_data;
+                    datasent += remaining_data;
+                }
+                else
+                {
+                    if (remaining_data == 0)
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        USBERRMSG("sendGetResp: host requested more data than available in response\n");
+                        return usbModel::USBERROR;
+                    }
+                }
+            }
+
+            // Send DATAx packet
+            sendPktToHost(currdatapid, data, datasize, idle);
+
+            currdatapid = (currdatapid == usbModel::PID_DATA_0) ? usbModel::PID_DATA_1 : usbModel::PID_DATA_0;
+
+            USBDISPPKT("%s", fmtstr);
+
+            // Wait for acknowledge (either ACK or NAK)
+            if (waitForExpectedPacket(PID_NO_CHECK, pid, args, rxdata, databytes) != usbModel::USBOK)
+            {
+                return usbModel::USBERROR;
+            }
+
+            // If ACK then end of transaction if no more bytes
+            if (pid == usbModel::PID_HSHK_ACK)
+            {
+                USBDEVDEBUG("==> handleDevReq: seen ACK for DATA1\n");
+                if (remaining_data == 0)
+                {
+                    break;
+                }
+            }
+            // Unexpected PID in not NAK. NAK cause loop to send again, so no action.
+            else if (pid != usbModel::PID_HSHK_NAK)
+            {
+                return usbModel::USBERROR;
+            }
+        }
     }
 
     return usbModel::USBOK;

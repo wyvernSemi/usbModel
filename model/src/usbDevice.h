@@ -34,6 +34,41 @@ class usbDevice : public usbPliApi, public usbPkt
 {
 public:
 
+    // Configuration structure
+    struct configAllDesc
+    {
+        struct usbModel::configDesc       cfgdesc0;
+        struct usbModel::headerFuncDesc   hdrfuncdesc;
+        struct usbModel::acmFuncDesc      acmfuncdesc;
+        struct usbModel::unionFuncDesc    unionfuncdesc;
+        struct usbModel::callMgmtFuncDesc callmgmtfuncdesc;
+        struct usbModel::interfaceDesc    ifdesc0;
+        struct usbModel::endpointDesc     epdesc0_0;
+        struct usbModel::interfaceDesc    ifdesc1;
+        struct usbModel::endpointDesc     epdesc1_0;
+        struct usbModel::endpointDesc     epdesc1_1;
+    };
+    
+    union cfgAllBuf
+    {
+        configAllDesc cfgall;
+        uint8_t       rawbytes[sizeof(configAllDesc)];
+        
+        cfgAllBuf()
+        {
+            usbModel::configDesc(sizeof(configAllDesc));
+            usbModel::headerFuncDesc();
+            usbModel::acmFuncDesc();
+            usbModel::unionFuncDesc();
+            usbModel::callMgmtFuncDesc();
+            usbModel::interfaceDesc(0, 1);
+            usbModel::endpointDesc(0x88, 0x03, 0xff);
+            usbModel::interfaceDesc(1, 2);
+            usbModel::endpointDesc(0x81, 0x02);
+            usbModel::endpointDesc(0x01, 0x02);
+        }
+    };
+
     static const int      PID_NO_CHECK             = usbModel::PID_INVALID;
     static const int      DEFAULT_IDLE             = 36;
 
@@ -60,6 +95,11 @@ private:
         usbPliApi::reset();
         devaddr   = usbModel::USB_NO_ASSIGNED_ADDR;
     }
+    
+    int          sendGetResp           (const usbModel::setupRequest* sreq,
+                                        const uint8_t data[], const int databytes,
+                                        const char* fmtstr,
+                                        const int idle = DEFAULT_IDLE);
 
     // Methods for sending packets back towards the host
     void         sendPktToHost         (const int pid, const uint8_t  data[],   unsigned  datalen, const int idle = DEFAULT_IDLE);   // DATA
@@ -91,5 +131,9 @@ private:
     uint8_t                rxdata [usbModel::MAXBUFSIZE];
     usbModel::usb_signal_t nrzi   [usbModel::MAXBUFSIZE];
     char                   sbuf   [usbModel::ERRBUFSIZE];
+    
+    usbModel::deviceDesc   devdesc;
+    cfgAllBuf              cfgalldesc;
+    
 
 };
