@@ -53,21 +53,30 @@ public:
     // -------------------------------------------------------------------------
 public:
     int  getDeviceStatus      (const uint8_t  addr,    const uint8_t  endp,           uint16_t &status,    const unsigned idle = DEFAULTIDLEDELAY);
+
     int  getDeviceDescriptor  (const uint8_t  addr,    const uint8_t  endp,           uint8_t data[],      const uint16_t reqlength,
                                      uint16_t &rxlen,  const bool     chklen = true,  const unsigned idle = DEFAULTIDLEDELAY);
-    
+
+    int  setAddress           (const uint8_t  addr,    const uint8_t  endp,           const uint16_t wValue, const unsigned idle = DEFAULTIDLEDELAY);
+
     // -------------------------------------------------------------------------
     // Private methods
     // -------------------------------------------------------------------------
 private:
     void sendTokenToDevice    (const int     pid,      const uint8_t  addr,   const uint8_t  endp,       const unsigned idle = DEFAULTIDLEDELAY);
+    
     int  sendDataToDevice     (const int     datatype, const uint8_t  data[], const int      len,        const unsigned idle = DEFAULTIDLEDELAY);
+    
     int  getDataFromDevice    (const int     expPID,         uint8_t  data[],       int      &databytes, const unsigned idle = DEFAULTIDLEDELAY);
-    int  sendGetStatusRequest (const uint8_t addr,     const uint8_t  endp,                              const unsigned idle = DEFAULTIDLEDELAY);
+
+    int  sendDeviceRequest    (const uint8_t  addr,      const uint8_t  endp,
+                               const uint8_t  reqtype,   const uint8_t  request,
+                               const uint16_t value = 0, const uint16_t index = 0, const uint16_t length = 0,
+                               const unsigned idle  = DEFAULTIDLEDELAY);
+
+    int  sendGetStatusRequest (const uint8_t addr,     const uint8_t  endp,   const unsigned idle = DEFAULTIDLEDELAY);
+    
     int  sendGetDevDescRequest(const uint8_t addr,     const uint8_t  endp,   const uint16_t length,     const unsigned idle = DEFAULTIDLEDELAY);
-    int  sendDeviceRequest    (const uint8_t addr,     const uint8_t  endp,
-                               const uint8_t request,  const uint16_t length, const uint16_t value = 0,  const uint16_t index = 0,
-                               const unsigned idle = DEFAULTIDLEDELAY);
 
     // -------------------------------------------------------------------------
     // Internal private state

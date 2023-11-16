@@ -64,16 +64,20 @@ extern "C" void VUserMain0()
     }
     else
     {
+        // Get the device descriptor
         host.getDeviceDescriptor  (addr, endp, rxdata, 0x00FF, rxlen, false);
         usbModel::fmtDevDescriptor(scratchbuf, rxdata);
         fprintf(stderr, "\nVUserMain0: received device configuration\n\n%s", scratchbuf);
+        
+        // Set the device address to 1
+        host.setAddress(addr, endp, 0x0001);
+        addr = 1;
+        fprintf(stderr, "\nVUserMain0: sent SET_ADDR (0x%04x)\n\n", addr);
 
-        /*
+        // Get the device status
         host.getDeviceStatus(addr, endp, dev_status);
-
-
         fprintf(stderr, "\nVUserMain0: received device status of 0x%04x\n\n", dev_status);
-        */
+
     }
 
     host.SendIdle(100);
