@@ -198,7 +198,7 @@ int usbDevice::processControl(const uint32_t addr, const uint32_t endp, const in
     USBDEVDEBUG ( "==> processControl (addr = 0x%02x, endp = 0x%02x)\n", addr, endp);
 
     // Check Address/endp is 0/0 or a previously set address and a valid endpoint
-    if (!((addr == 0 && endp == 0) || (addr == devaddr && endp > 0 && endp <= numendpoints)))
+    if (!((addr == 0 && endp == 0) || (addr == devaddr && endp <= numendpoints)))
     {
         // Generate a STALL handshake if an error
         sendPktToHost(usbModel::PID_HSHK_STALL, idle);
@@ -294,6 +294,10 @@ int usbDevice::handleDevReq(const usbModel::setupRequest* sreq, const int idle)
         break;
 
     case usbModel::USB_REQ_SET_ADDRESS:
+        // Extract address
+        devaddr = sreq->wValue;
+        
+        USBDEVDEBUG("==> Received SET_ADDRESS 0x%02x\n", sreq->wValue);
         break;
 
     case usbModel::USB_REQ_GET_DESCRIPTOR:
