@@ -73,6 +73,7 @@ namespace usbModel
     static const int      MAXDEVADDR               = 127;
     static const int      MAXENDP                  = 15;
     static const int      MAXFRAMENUM              = 4095;
+    static const int      MAXONESLENGTH            = 6;
 
     static const int      POLY16                   = 0x8005;
     static const unsigned BIT16                    = 0x8000U;
@@ -145,6 +146,18 @@ namespace usbModel
     static const uint8_t  USB_FUNC_DESCRIPTOR_TYPE = 0x24;
 
     static const int      USB_NO_ASSIGNED_ADDR     = -1;
+    
+    static const uint8_t  DEVICE_DESCRIPTOR_TYPE   = 0x01;
+    static const uint8_t  CONFIG_DESCRIPTOR_TYPE   = 0x02;
+    static const uint8_t  STRING_DESCRIPTOR_TYPE   = 0x03;
+    static const uint8_t  IF_DESCRIPTOR_TYPE       = 0x04;
+    static const uint8_t  EP_DESCRIPTOR_TYPE       = 0x05;
+    static const uint8_t  CS_IF_DESCRIPTOR_TYPE    = 0x24;
+    
+    static const uint8_t  HEADER_SUBTYPE           = 0x00;
+    static const uint8_t  CALL_MGMT_SUBTYPE        = 0x01;
+    static const uint8_t  ACM_SUBTYPE              = 0x02;
+    static const uint8_t  UNION_SUBTYPE            = 0x06;
 
     struct deviceDesc
     {
@@ -163,22 +176,22 @@ namespace usbModel
         uint8_t        iSerialNumber;
         uint8_t        bNumConfigurations;
 
-        deviceDesc()
+        deviceDesc(uint8_t maxpktsize = 0x20, uint8_t numcfgs = 1)
         {
-            bLength                    = 0x12;   // 18 Bytes
-            bDescriptorType            = 0x01;   // 0x01 = device descriptor
-            bcdUSB                     = 0x1001; // USB 1.1
-            bDeviceClass               = 0x02;   // CDC
-            bDeviceSubClass            = 0x00;   // unused
-            bDeviceProtocol            = 0x00;   // unused
-            bMaxPacketSize             = 0x20;   // Max packet 32 bytes
-            idVendor                   = 0xdead; // Fake vendor ID
-            idProduct                  = 0x0001; // Product #1
-            bcdDevice                  = 0x0001; // Release number
-            iManufacturer              = 0x01;   // Manufacturer string index
-            iProduct                   = 0x02;   // Product string index
-            iSerialNumber              = 0x00;   // Serial number index (none)
-            bNumConfigurations         = 0x01;   // Number of configurations
+            bLength                    = 0x12;                         // 18 Bytes
+            bDescriptorType            = DEVICE_DESCRIPTOR_TYPE;       // 0x01 = device descriptor
+            bcdUSB                     = 0x1001;                       // USB 1.1
+            bDeviceClass               = 0x02;                         // CDC
+            bDeviceSubClass            = 0x00;                         // unused
+            bDeviceProtocol            = 0x00;                         // unused
+            bMaxPacketSize             = maxpktsize;                   // Max packet 32 bytes
+            idVendor                   = 0xdead;                       // Fake vendor ID
+            idProduct                  = 0x0001;                       // Product #1
+            bcdDevice                  = 0x0001;                       // Release number
+            iManufacturer              = 0x01;                         // Manufacturer string index
+            iProduct                   = 0x02;                         // Product string index
+            iSerialNumber              = 0x00;                         // Serial number index (none)
+            bNumConfigurations         = numcfgs;                      // Number of configurations
         }
     } ;
 
@@ -193,16 +206,16 @@ namespace usbModel
         uint8_t        bmAttributes;
         uint8_t        bMaxPower;
 
-        configDesc()
+        configDesc(uint16_t totalLen = 0x0039)
         {
-            bLength             = 0x09;          // 9 bytes
-            bDescriptorType     = 0x02;          // 0x02 = configuration descriptor
-            wTotalLength        = 0x39;          // Number of bytes for all descriptors
-            bNumInterfaces      = 0x02;          // 2 interfaces
-            bConfigurationValue = 0x01;          // Index for this configuration
-            iConfiguration      = 0x00;          // Index to configuration description string (none)
-            bmAttributes        = 0x80;          // Powered from bus
-            bMaxPower           = 0x64;          // Maximum power consumption mA (100mA)
+            bLength             = 0x09;                                // 9 bytes
+            bDescriptorType     = CONFIG_DESCRIPTOR_TYPE;              // 0x02 = configuration descriptor
+            wTotalLength        = totalLen;                            // Number of bytes for all descriptors
+            bNumInterfaces      = 0x02;                                // 2 interfaces
+            bConfigurationValue = 0x01;                                // Index for this configuration
+            iConfiguration      = 0x00;                                // Index to configuration description string (none)
+            bmAttributes        = 0x80;                                // Powered from bus
+            bMaxPower           = 0x64;                                // Maximum power consumption mA (100mA)
         }
     };
 
@@ -218,17 +231,17 @@ namespace usbModel
         uint8_t        bInterfaceProtocol;
         uint8_t        iInterface;
 
-        interfaceDesc()
+        interfaceDesc(uint8_t index = 0, uint8_t numep = 1)
         {
-            bLength             = 0x09;          // 9 bytes
-            bDescriptorType     = 0x04;          // 0x04 = interface descriptor
-            bInterfaceNumber    = 0x00;          // Index of this interface descriptor
-            bAlternateSetting   = 0x00;          // Selection index for alternative setting
-            bNumEndpoints       = 0x01;          // Number of endpoints under interface (1)
-            bInterfaceClass     = 0x02;          // Interface class (0x02 = CDC)
-            bInterfaceSubClass  = 0x02;          // Interface sub-class (0x02)
-            bInterfaceProtocol  = 0x01;          // Interface protocol (0x01)
-            iInterface          = 0x00;          // Index to interface description string (none)
+            bLength             = 0x09;                                // 9 bytes
+            bDescriptorType     = IF_DESCRIPTOR_TYPE;                  // 0x04 = interface descriptor
+            bInterfaceNumber    = index;                               // Index of this interface descriptor
+            bAlternateSetting   = 0x00;                                // Selection index for alternative setting
+            bNumEndpoints       = numep;                               // Number of endpoints under interface 
+            bInterfaceClass     = 0x02;                                // Interface class (0x02 = CDC)
+            bInterfaceSubClass  = 0x02;                                // Interface sub-class (0x02)
+            bInterfaceProtocol  = 0x01;                                // Interface protocol (0x01)
+            iInterface          = 0x00;                                // Index to interface description string (none)
         }
     };
 
@@ -241,14 +254,82 @@ namespace usbModel
         uint16_t       wMaxPacketSize;
         uint8_t        bInterval;
 
-        endpointDesc()
+        endpointDesc(uint8_t epaddr = 0x01, uint8_t attr = 0x02, uint8_t interval = 0x00, uint16_t maxpktsize = 0x0020)
         {
-            bLength             = 0x07;          // 7 bytes
-            bDescriptorType     = 0x05;          // 0x05 = endpoint descriptor
-            bEndpointAddress    = 0x01;          // Endpoint address (0x01, OUT)
-            bmAttributes        = 0x02;          // EP transfer attributes (0x02 = bulk)
-            wMaxPacketSize      = 0x0020;        // Maximum packet size (32)
-            bInterval           = 0x00;          // Polling interval (0x00, unused for bulk)
+            bLength             = 0x07;                                // 7 bytes
+            bDescriptorType     = EP_DESCRIPTOR_TYPE;                  // 0x05 = endpoint descriptor
+            bEndpointAddress    = epaddr;                              // Endpoint address (default 0x01, OUT)
+            bmAttributes        = attr;                                // Default EP transfer attributes (0x02 = bulk)
+            wMaxPacketSize      = maxpktsize;                          // Maximum packet size (32)
+            bInterval           = interval;                            // Polling interval (default 0x00, unused for bulk)
+        }
+    };
+    
+    struct headerFuncDesc
+    {
+        uint8_t        bLength;
+        uint8_t        bDescriptorType;
+        uint8_t        bDescriptorSubType;
+        uint16_t       bcdCDC;
+        
+        headerFuncDesc()
+        {
+            bLength             = 0x05;                                // 4 Bytes
+            bDescriptorType     = CS_IF_DESCRIPTOR_TYPE;               // CS_INTERFACE
+            bDescriptorSubType  = HEADER_SUBTYPE;                      // Header
+            bcdCDC              = 0x0110;                              // vesrion 1.1
+        }
+    };
+    
+    struct acmFuncDesc
+    {
+        uint8_t        bLength;
+        uint8_t        bDescriptorType;
+        uint8_t        bDescriptorSubType;
+        uint8_t        bmCapabilities;
+        
+        acmFuncDesc()
+        {
+            bLength             = 0x04;                                // 4 Bytes
+            bDescriptorType     = CS_IF_DESCRIPTOR_TYPE;               // CS_INTERFACE
+            bDescriptorSubType  = ACM_SUBTYPE;                         // Abstract control managment
+            bmCapabilities      = 0x02;                                // ACM subset support
+        }
+    };
+    
+    struct unionFuncDesc
+    {
+        uint8_t        bLength;
+        uint8_t        bDescriptorType;
+        uint8_t        bDescriptorSubType;
+        uint8_t        bControlInterface;
+        uint8_t        bSubordinateInteface0;
+        
+        unionFuncDesc()
+        {
+            bLength               = 0x05;                              // 4 Bytes
+            bDescriptorType       = CS_IF_DESCRIPTOR_TYPE;             // CS_INTERFACE
+            bDescriptorSubType    = UNION_SUBTYPE;                     // Union
+            bControlInterface     = 0x00;                              // Control interface is interface 0
+            bSubordinateInteface0 = 0x01;                              // Subordinate interface is interface 1
+        }
+    };
+    
+    struct callMgmtFuncDesc
+    {
+        uint8_t        bLength;
+        uint8_t        bDescriptorType;
+        uint8_t        bDescriptorSubType;
+        uint8_t        bmCapabilities;
+        uint8_t        bmDataInterface;
+        
+        callMgmtFuncDesc()
+        {
+            bLength               = 0x05;                              // 4 Bytes
+            bDescriptorType       = CS_IF_DESCRIPTOR_TYPE;             // CS_INTERFACE
+            bDescriptorSubType    = CALL_MGMT_SUBTYPE;                 // Call management
+            bmCapabilities        = 0x03;                              // DIY
+            bmDataInterface       = 0x01;                              // Data interface is interface 1
         }
     };
 
@@ -260,9 +341,9 @@ namespace usbModel
 
         stringDesc()
         {
-            bLength             = 0x03;          // 3 Bytes
-            bDescriptorType     = 0x03;          // 0x03 = string descriptor;
-            bString[0]          = 0x00;          // Empty string
+            bLength             = 0x03;                                // 3 Bytes
+            bDescriptorType     = STRING_DESCRIPTOR_TYPE;              // 0x03 = string descriptor;
+            bString[0]          = 0x00;                                // Empty string
         }
     };
 
