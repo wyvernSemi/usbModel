@@ -50,6 +50,9 @@ extern "C" void VUserMain1()
         fprintf(stderr, "***ERROR: VUserMain1: runUsbDevice returned bad status\n");
         dev.getUsbErrMsg(sbuf);
         fprintf(stderr, "%s\n", sbuf);
+        
+        // Halt the simulation
+        dev.haltSimulation();
     }
 
     dev.SendIdle(0);

@@ -35,8 +35,9 @@ class usbDevice : public usbPliApi, public usbPkt
 public:
 
     // Configuration structure
-    struct configAllDesc
+    class configAllDesc
     {
+    public:
         struct usbModel::configDesc       cfgdesc0;
         struct usbModel::headerFuncDesc   hdrfuncdesc;
         struct usbModel::acmFuncDesc      acmfuncdesc;
@@ -47,25 +48,24 @@ public:
         struct usbModel::interfaceDesc    ifdesc1;
         struct usbModel::endpointDesc     epdesc1_0;
         struct usbModel::endpointDesc     epdesc1_1;
+
+        configAllDesc() : cfgdesc0(sizeof(configAllDesc)),
+                          ifdesc0(0, 1),
+                          epdesc0_0(0x88, 0x03, 0xff),
+                          ifdesc1(1, 2),
+                          epdesc1_0(0x81, 02),
+                          epdesc1_1(0x01, 02)
+        {
+        }
     };
-    
+
     union cfgAllBuf
     {
         configAllDesc cfgall;
         uint8_t       rawbytes[sizeof(configAllDesc)];
-        
-        cfgAllBuf()
+
+        cfgAllBuf() : cfgall()
         {
-            usbModel::configDesc(sizeof(configAllDesc));
-            usbModel::headerFuncDesc();
-            usbModel::acmFuncDesc();
-            usbModel::unionFuncDesc();
-            usbModel::callMgmtFuncDesc();
-            usbModel::interfaceDesc(0, 1);
-            usbModel::endpointDesc(0x88, 0x03, 0xff);
-            usbModel::interfaceDesc(1, 2);
-            usbModel::endpointDesc(0x81, 0x02);
-            usbModel::endpointDesc(0x01, 0x02);
         }
     };
 
@@ -95,7 +95,7 @@ private:
         usbPliApi::reset();
         devaddr   = usbModel::USB_NO_ASSIGNED_ADDR;
     }
-    
+
     int          sendGetResp           (const usbModel::setupRequest* sreq,
                                         const uint8_t data[], const int databytes,
                                         const char* fmtstr,
@@ -115,7 +115,7 @@ private:
     int          processIn             (const uint32_t args[], const uint8_t  data[], const int databytes, const int idle = DEFAULT_IDLE);
     int          processOut            (const uint32_t args[],       uint8_t  data[], const int databytes, const int idle = DEFAULT_IDLE);
     int          processSOF            (const uint32_t args[], const int      idle = DEFAULT_IDLE);
- 
+
     // Method for handling device requests
     int          handleDevReq          (const usbModel::setupRequest* sreq, const int idle = DEFAULT_IDLE);
 
@@ -131,9 +131,9 @@ private:
     uint8_t                rxdata [usbModel::MAXBUFSIZE];
     usbModel::usb_signal_t nrzi   [usbModel::MAXBUFSIZE];
     char                   sbuf   [usbModel::ERRBUFSIZE];
-    
+
     usbModel::deviceDesc   devdesc;
     cfgAllBuf              cfgalldesc;
-    
+
 
 };

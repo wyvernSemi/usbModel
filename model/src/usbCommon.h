@@ -23,6 +23,7 @@
 //
 //=============================================================
 
+#include <stdio.h>
 #include <stdint.h>
 
 #ifndef _USB_COMMON_H_
@@ -146,19 +147,23 @@ namespace usbModel
     static const uint8_t  USB_FUNC_DESCRIPTOR_TYPE = 0x24;
 
     static const int      USB_NO_ASSIGNED_ADDR     = -1;
-    
+
     static const uint8_t  DEVICE_DESCRIPTOR_TYPE   = 0x01;
     static const uint8_t  CONFIG_DESCRIPTOR_TYPE   = 0x02;
     static const uint8_t  STRING_DESCRIPTOR_TYPE   = 0x03;
     static const uint8_t  IF_DESCRIPTOR_TYPE       = 0x04;
     static const uint8_t  EP_DESCRIPTOR_TYPE       = 0x05;
     static const uint8_t  CS_IF_DESCRIPTOR_TYPE    = 0x24;
-    
+
     static const uint8_t  HEADER_SUBTYPE           = 0x00;
     static const uint8_t  CALL_MGMT_SUBTYPE        = 0x01;
     static const uint8_t  ACM_SUBTYPE              = 0x02;
     static const uint8_t  UNION_SUBTYPE            = 0x06;
 
+// As these descriptor structures will used to form a single
+// super-configuration structure, padding beyond bytes must be disabled
+#pragma pack(push)
+#pragma pack(1)
     struct deviceDesc
     {
         uint8_t        bLength;
@@ -237,7 +242,7 @@ namespace usbModel
             bDescriptorType     = IF_DESCRIPTOR_TYPE;                  // 0x04 = interface descriptor
             bInterfaceNumber    = index;                               // Index of this interface descriptor
             bAlternateSetting   = 0x00;                                // Selection index for alternative setting
-            bNumEndpoints       = numep;                               // Number of endpoints under interface 
+            bNumEndpoints       = numep;                               // Number of endpoints under interface
             bInterfaceClass     = 0x02;                                // Interface class (0x02 = CDC)
             bInterfaceSubClass  = 0x02;                                // Interface sub-class (0x02)
             bInterfaceProtocol  = 0x01;                                // Interface protocol (0x01)
@@ -264,14 +269,14 @@ namespace usbModel
             bInterval           = interval;                            // Polling interval (default 0x00, unused for bulk)
         }
     };
-    
+
     struct headerFuncDesc
     {
         uint8_t        bLength;
         uint8_t        bDescriptorType;
         uint8_t        bDescriptorSubType;
         uint16_t       bcdCDC;
-        
+
         headerFuncDesc()
         {
             bLength             = 0x05;                                // 4 Bytes
@@ -280,14 +285,14 @@ namespace usbModel
             bcdCDC              = 0x0110;                              // vesrion 1.1
         }
     };
-    
+
     struct acmFuncDesc
     {
         uint8_t        bLength;
         uint8_t        bDescriptorType;
         uint8_t        bDescriptorSubType;
         uint8_t        bmCapabilities;
-        
+
         acmFuncDesc()
         {
             bLength             = 0x04;                                // 4 Bytes
@@ -296,7 +301,7 @@ namespace usbModel
             bmCapabilities      = 0x02;                                // ACM subset support
         }
     };
-    
+
     struct unionFuncDesc
     {
         uint8_t        bLength;
@@ -304,7 +309,7 @@ namespace usbModel
         uint8_t        bDescriptorSubType;
         uint8_t        bControlInterface;
         uint8_t        bSubordinateInteface0;
-        
+
         unionFuncDesc()
         {
             bLength               = 0x05;                              // 4 Bytes
@@ -314,7 +319,7 @@ namespace usbModel
             bSubordinateInteface0 = 0x01;                              // Subordinate interface is interface 1
         }
     };
-    
+
     struct callMgmtFuncDesc
     {
         uint8_t        bLength;
@@ -322,7 +327,7 @@ namespace usbModel
         uint8_t        bDescriptorSubType;
         uint8_t        bmCapabilities;
         uint8_t        bmDataInterface;
-        
+
         callMgmtFuncDesc()
         {
             bLength               = 0x05;                              // 4 Bytes
@@ -346,6 +351,7 @@ namespace usbModel
             bString[0]          = 0x00;                                // Empty string
         }
     };
+#pragma pack(pop)
 
     struct setupRequest
     {

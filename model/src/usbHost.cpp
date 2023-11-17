@@ -66,6 +66,7 @@ int usbHost::getDeviceDescriptor (const uint8_t  addr,   const uint8_t  endp,
     int      error         = usbModel::USBOK;
     int      receivedbytes = 0;
     int      databytes;
+    int      pid           = usbModel::PID_DATA_1;
 
 
     // Send out the request
@@ -81,7 +82,7 @@ int usbHost::getDeviceDescriptor (const uint8_t  addr,   const uint8_t  endp,
             sendTokenToDevice(usbModel::PID_TOKEN_IN, addr, endp, idle);
 
             // Receive requested data
-            if (getDataFromDevice(usbModel::PID_DATA_1, &rxdata[receivedbytes], databytes, idle) != usbModel::USBOK)
+            if (getDataFromDevice(pid, &rxdata[receivedbytes], databytes, idle) != usbModel::USBOK)
             {
                 error = usbModel::USBERROR;
             }
@@ -89,6 +90,9 @@ int usbHost::getDeviceDescriptor (const uint8_t  addr,   const uint8_t  endp,
             {
                 receivedbytes += databytes;
             }
+            
+            pid = (pid == usbModel::PID_DATA_1) ? usbModel::PID_DATA_0 : usbModel::PID_DATA_1;
+            
         } while ((receivedbytes < reqlen && receivedbytes < ((usbModel::deviceDesc*)rxdata)->bLength));
 
         if (chklen && receivedbytes != reqlen)
@@ -103,6 +107,58 @@ int usbHost::getDeviceDescriptor (const uint8_t  addr,   const uint8_t  endp,
         }
     }
 
+    return error;
+}
+
+// -------------------------------------------------------------------------
+// -------------------------------------------------------------------------
+
+int usbHost::getConfigDescriptor  (const  uint8_t  addr,   const uint8_t  endp,
+                                          uint8_t  data[], const uint16_t reqlen, uint16_t &rxlen,
+                                    const bool     chklen, const unsigned idle)
+{
+    int      error         = usbModel::USBOK;
+    int      receivedbytes = 0;
+    int      databytes;
+    int      pid           = usbModel::PID_DATA_1;
+
+    // Send out the request
+    if (sendGetCfgDescRequest(addr, endp, reqlen, idle) != usbModel::USBOK)
+    {
+        error = usbModel::USBERROR;
+    }
+    else
+    {
+        do
+        {
+            // Send IN token
+            sendTokenToDevice(usbModel::PID_TOKEN_IN, addr, endp, idle);
+
+            // Receive requested data
+            if (getDataFromDevice(pid, &rxdata[receivedbytes], databytes, idle) != usbModel::USBOK)
+            {
+                error = usbModel::USBERROR;
+            }
+            else
+            {
+                receivedbytes += databytes;
+            }
+            
+            pid = (pid == usbModel::PID_DATA_1) ? usbModel::PID_DATA_0 : usbModel::PID_DATA_1;
+        } while ((receivedbytes < reqlen && receivedbytes < ((usbModel::configDesc*)rxdata)->wTotalLength));
+
+        if (chklen && receivedbytes != reqlen)
+        {
+            USBERRMSG("getDeviceDescriptor: unexpected length of data received (got %d, expected %d)\n", receivedbytes, reqlen);
+            error = usbModel::USBERROR;
+        }
+        else
+        {
+            std::memcpy(data, rxdata, reqlen);
+            rxlen = receivedbytes;
+        }
+    }
+    
     return error;
 }
 
@@ -154,7 +210,7 @@ int usbHost::getDataFromDevice(const int expPID, uint8_t data[], int &databytes,
 
     if (decodePkt(nrzi, pid, args, data, databytes) != usbModel::USBOK)
     {
-        USBERRMSG ("***ERROR: getInData: received bad packet waiting for data\n");
+        USBERRMSG ("***ERROR: getDataFromDevice: received bad packet waiting for data\n");
         getUsbErrMsg(sbuf);
         USBERRMSG ("%s\n", sbuf);
         error = usbModel::USBERROR;
@@ -163,13 +219,15 @@ int usbHost::getDataFromDevice(const int expPID, uint8_t data[], int &databytes,
     {
         if (pid == expPID)
         {
+            USBDEVDEBUG("==> getDataFromDevice: Sending an ACK\n");
+            
             // Send ACK
             int numbits = genUsbPkt(nrzi, usbModel::PID_HSHK_ACK);
             SendPacket(nrzi, numbits, idle);
         }
         else
         {
-            USBERRMSG ("***ERROR: getInData: received unexpected packet ID waiting for data (0x%02x)\n", pid);
+            USBERRMSG ("***ERROR: getDataFromDevice: received unexpected packet ID waiting for data (0x%02x)\n", pid);
             error = usbModel::USBERROR;
         }
     }
@@ -253,6 +311,20 @@ int usbHost::sendGetDevDescRequest(const uint8_t addr, const uint8_t endp, const
                              usbModel::USB_DEV_REQTYPE_GET,
                              usbModel::USB_REQ_GET_DESCRIPTOR,
                              usbModel::DEVICE_DESCRIPTOR_TYPE << 8,    // wValue
+                             0,                                        // wIndex
+                             length,                                   // wLength
+                             idle);
+}
+
+// -------------------------------------------------------------------------
+// -------------------------------------------------------------------------
+
+int usbHost::sendGetCfgDescRequest(const uint8_t addr, const uint8_t endp, const uint16_t length, const unsigned idle)
+{
+    return sendDeviceRequest(addr, endp,
+                             usbModel::USB_DEV_REQTYPE_GET,
+                             usbModel::USB_REQ_GET_DESCRIPTOR,
+                             usbModel::CONFIG_DESCRIPTOR_TYPE << 8,    // wValue
                              0,                                        // wIndex
                              length,                                   // wLength
                              idle);

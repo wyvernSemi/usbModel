@@ -547,6 +547,7 @@ int usbPkt::decodePkt(const usbModel::usb_signal_t nrzibuf[], int& pid, uint32_t
     databytes = 0;
 
     int crc;
+    int idx;
 
     // NRZI decode
     int bitcnt = nrziDec(nrzibuf, rawbuf);
@@ -660,7 +661,7 @@ int usbPkt::decodePkt(const usbModel::usb_signal_t nrzibuf[], int& pid, uint32_t
         // Copy validated memory to output buffer
         USBDISPPKT("  %s RX DATA:    %s", name.c_str(), pid == usbModel::PID_DATA_0 ? "DATA0" : "DATA1");
 
-        for (int idx = 0; idx < databytes; idx++)
+        for (idx = 0; idx < databytes; idx++)
         {
             data[idx] = rawbuf[usbModel::DATABYTEOFFSET+idx].dp;
 
@@ -671,7 +672,7 @@ int usbPkt::decodePkt(const usbModel::usb_signal_t nrzibuf[], int& pid, uint32_t
             USBDISPPKT(" %02x", data[idx]);
         }
 
-        if (databytes % 16)
+        if (idx % 16 != 1)
         {
             USBDISPPKT(FMT_NORMAL "\n");
         }

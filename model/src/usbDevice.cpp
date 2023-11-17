@@ -296,7 +296,7 @@ int usbDevice::handleDevReq(const usbModel::setupRequest* sreq, const int idle)
     case usbModel::USB_REQ_SET_ADDRESS:
         // Extract address
         devaddr = sreq->wValue;
-        
+
         USBDEVDEBUG("==> Received SET_ADDRESS 0x%02x\n", sreq->wValue);
         break;
 
@@ -324,6 +324,16 @@ int usbDevice::handleDevReq(const usbModel::setupRequest* sreq, const int idle)
             break;
 
         case usbModel::CONFIG_DESCRIPTOR_TYPE:
+
+            // Set returned data size to be the whole of all of the descriptors if this is smaller than requested length,
+            // else return the requested length
+            datasize = (sreq->wLength > sizeof(configAllDesc)) ? sizeof(configAllDesc) : sreq->wLength;
+
+            // Construct a formatted output string
+            snprintf(sbuf, usbModel::ERRBUFSIZE,"  %s RX DEV REQ: GET CONFIG DESCRIPTOR (wLength = %d)\n", name.c_str(), sreq->wLength);
+
+            // Send the response to the GET_DESCRIPTOR (DEVICE) command
+            return sendGetResp(sreq, cfgalldesc.rawbytes, datasize, sbuf);
             break;
 
         case usbModel::STRING_DESCRIPTOR_TYPE:
@@ -382,71 +392,69 @@ int usbDevice::sendGetResp (const usbModel::setupRequest* sreq, const uint8_t da
         return usbModel::USBERROR;
     }
 
-    USBDEVDEBUG ("==> sendGetResp: waiting for IN token\n");
+    while (true)
+    {
+        int remaining_data = databytes - datasent;
 
-    if (waitForExpectedPacket(usbModel::PID_TOKEN_IN, pid, args, rxdata, numbytes) != usbModel::USBOK)
-    {
-        return usbModel::USBERROR;
-    }
-    else
-    {
-        while (true)
+        if (remaining_data > devdesc.bMaxPacketSize)
         {
-            int remaining_data = databytes - datasent;
-
-            if (remaining_data > devdesc.bMaxPacketSize)
+            datasize  = devdesc.bMaxPacketSize;
+        }
+        else
+        {
+            if (remaining_data > 0)
             {
-                datasize  = devdesc.bMaxPacketSize;
-                datasent += datasize;
+                datasize  = remaining_data;
             }
             else
             {
-                if (remaining_data > 0)
-                {
-                    datasize  = remaining_data;
-                    datasent += remaining_data;
-                }
-                else
-                {
-                    if (remaining_data == 0)
-                    {
-                        break;
-                    }
-                    else
-                    {
-                        USBERRMSG("sendGetResp: host requested more data than available in response\n");
-                        return usbModel::USBERROR;
-                    }
-                }
-            }
-
-            // Send DATAx packet
-            sendPktToHost(currdatapid, data, datasize, idle);
-
-            currdatapid = (currdatapid == usbModel::PID_DATA_0) ? usbModel::PID_DATA_1 : usbModel::PID_DATA_0;
-
-            USBDISPPKT("%s", fmtstr);
-
-            // Wait for acknowledge (either ACK or NAK)
-            if (waitForExpectedPacket(PID_NO_CHECK, pid, args, rxdata, databytes) != usbModel::USBOK)
-            {
-                return usbModel::USBERROR;
-            }
-
-            // If ACK then end of transaction if no more bytes
-            if (pid == usbModel::PID_HSHK_ACK)
-            {
-                USBDEVDEBUG("==> handleDevReq: seen ACK for DATA1\n");
                 if (remaining_data == 0)
                 {
                     break;
                 }
             }
-            // Unexpected PID in not NAK. NAK cause loop to send again, so no action.
-            else if (pid != usbModel::PID_HSHK_NAK)
+        }
+
+        USBDEVDEBUG ("==> sendGetResp: waiting for IN token\n");
+
+        // Wait for an IN token
+        if (waitForExpectedPacket(usbModel::PID_TOKEN_IN, pid, args, rxdata, numbytes) != usbModel::USBOK)
+        {
+            USBERRMSG ("getResp: Received unexpected bmRequestType with a GET command (0x%02x)\n", sreq->bmRequestType);
+            return usbModel::USBERROR;
+        }
+
+        // Send DATAx packet
+        sendPktToHost(currdatapid, &data[datasent], datasize, idle);
+        datasent += datasize;
+
+        currdatapid = (currdatapid == usbModel::PID_DATA_0) ? usbModel::PID_DATA_1 : usbModel::PID_DATA_0;
+
+        USBDISPPKT("%s", fmtstr);
+        
+        USBDEVDEBUG ("==> sendGetResp: waiting for ACK/NAK token\n");
+
+        // Wait for acknowledge (either ACK or NAK)
+        if (waitForExpectedPacket(PID_NO_CHECK, pid, args, rxdata, databytes) != usbModel::USBOK)
+        {
+            USBERRMSG ("getResp: unexpected error wait for ACK/NAK\n");
+            return usbModel::USBERROR;
+        }
+
+        // If ACK then end of transaction if no more bytes
+        if (pid == usbModel::PID_HSHK_ACK)
+        {
+            USBDEVDEBUG("==> getResp: seen ACK for DATAx\n");
+            if ((databytes - datasent) == 0)
             {
-                return usbModel::USBERROR;
+                USBDEVDEBUG("==> getResp: remaining_data = %s\n", databytes - datasent);
+                break;
             }
+        }
+        // Unexpected PID in not NAK. NAK cause loop to send again, so no action.
+        else if (pid != usbModel::PID_HSHK_NAK)
+        {
+            return usbModel::USBERROR;
         }
     }
 
