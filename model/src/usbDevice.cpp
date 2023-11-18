@@ -259,6 +259,7 @@ int usbDevice::handleDevReq(const usbModel::setupRequest* sreq, const int idle)
     uint32_t             args[4];
     int                  databytes;
     int                  datasize;
+    int                  index;
 
     uint8_t              desctype;
     uint8_t              descidx;
@@ -332,11 +333,20 @@ int usbDevice::handleDevReq(const usbModel::setupRequest* sreq, const int idle)
             // Construct a formatted output string
             snprintf(sbuf, usbModel::ERRBUFSIZE,"  %s RX DEV REQ: GET CONFIG DESCRIPTOR (wLength = %d)\n", name.c_str(), sreq->wLength);
 
-            // Send the response to the GET_DESCRIPTOR (DEVICE) command
+            // Send the response to the GET_DESCRIPTOR (CONFIG) command
             return sendGetResp(sreq, cfgalldesc.rawbytes, datasize, sbuf);
             break;
 
         case usbModel::STRING_DESCRIPTOR_TYPE:
+            // Set returned data size to be the whole of all of the descriptors if this is smaller than requested length,
+            // else return the requested length
+            datasize = (sreq->wLength > strdesc[descidx].bLength) ? strdesc[descidx].bLength : sreq->wLength;
+
+            // Construct a formatted output string
+            snprintf(sbuf, usbModel::ERRBUFSIZE,"  %s RX DEV REQ: GET STRING DESCRIPTOR (wLength = %d)\n", name.c_str(), sreq->wLength);
+
+            // Send the response to the GET_DESCRIPTOR (STRING) command
+            return sendGetResp(sreq, (uint8_t*)&strdesc[descidx], datasize, sbuf);
             break;
 
         case usbModel::IF_DESCRIPTOR_TYPE:
@@ -431,7 +441,7 @@ int usbDevice::sendGetResp (const usbModel::setupRequest* sreq, const uint8_t da
         currdatapid = (currdatapid == usbModel::PID_DATA_0) ? usbModel::PID_DATA_1 : usbModel::PID_DATA_0;
 
         USBDISPPKT("%s", fmtstr);
-        
+
         USBDEVDEBUG ("==> sendGetResp: waiting for ACK/NAK token\n");
 
         // Wait for acknowledge (either ACK or NAK)
@@ -451,7 +461,7 @@ int usbDevice::sendGetResp (const usbModel::setupRequest* sreq, const uint8_t da
                 break;
             }
         }
-        // Unexpected PID in not NAK. NAK cause loop to send again, so no action.
+        // Unexpected PID if not a NAK. NAK causes loop to send again, so no action.
         else if (pid != usbModel::PID_HSHK_NAK)
         {
             return usbModel::USBERROR;

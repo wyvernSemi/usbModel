@@ -159,6 +159,8 @@ namespace usbModel
     static const uint8_t  CALL_MGMT_SUBTYPE        = 0x01;
     static const uint8_t  ACM_SUBTYPE              = 0x02;
     static const uint8_t  UNION_SUBTYPE            = 0x06;
+    
+    static const int      MAXSTRDESCSTRING         = 64;
 
 // As these descriptor structures will used to form a single
 // super-configuration structure, padding beyond bytes must be disabled
@@ -337,12 +339,27 @@ namespace usbModel
             bmDataInterface       = 0x01;                              // Data interface is interface 1
         }
     };
+    
+    struct string0Desc
+    {
+        uint8_t        bLength;
+        uint8_t        bDescriptorType;
+        uint16_t       wLangid[2];
+
+        string0Desc()
+        {
+            bLength             = 0x08;                                // 6 Bytes
+            bDescriptorType     = STRING_DESCRIPTOR_TYPE;              // 0x03 = string descriptor;
+            wLangid[0]          = 0x0809;                              // Engish (UK)
+            wLangid[1]          = 0x0409;                              // English (USA)
+        }
+    };
 
     struct stringDesc
     {
         uint8_t        bLength;
         uint8_t        bDescriptorType;
-        uint16_t       bString[64];
+        uint16_t       bString[MAXSTRDESCSTRING];
 
         stringDesc()
         {
@@ -351,6 +368,7 @@ namespace usbModel
             bString[0]          = 0x00;                                // Empty string
         }
     };
+   
 #pragma pack(pop)
 
     struct setupRequest

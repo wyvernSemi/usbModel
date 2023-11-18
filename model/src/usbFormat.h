@@ -117,17 +117,22 @@
 
 namespace usbModel
 {
-const char* fmtDecriptorType          (const uint8_t  desc);
-int         fmtDevDescriptor          (char sbuf[], const uint8_t rawdata[], const int maxstrsize = ERRBUFSIZE);
-int         fmtCfgDescriptor          (char sbuf[], const uint8_t rawdata[], const int maxstrsize = ERRBUFSIZE);
-int         fmtIfDescriptor           (char sbuf[], const uint8_t rawdata[], const int maxstrsize = ERRBUFSIZE);
-int         fmtEpDescriptor           (char sbuf[], const uint8_t rawdata[], const int maxstrsize = ERRBUFSIZE);
-int         fmtHdrFuncDescriptor      (char sbuf[], const uint8_t rawdata[], const int maxstrsize = ERRBUFSIZE);
-int         fmtAcmFuncDescriptor      (char sbuf[], const uint8_t rawdata[], const int maxstrsize = ERRBUFSIZE);
-int         fmtUnionFuncDescriptor    (char sbuf[], const uint8_t rawdata[], const int maxstrsize = ERRBUFSIZE);
-int         fmtCallMgmtFuncDescriptor (char sbuf[], const uint8_t rawdata[], const int maxstrsize = ERRBUFSIZE);
-int         fmtCfgAllDescriptor       (char sbuf[], const uint8_t rawdata[], const int maxstrsize = ERRBUFSIZE);
+int         fmtDevDescriptor          (char sbuf[], const uint8_t rawdata[], const unsigned indent = 0, const int maxstrsize = ERRBUFSIZE);
+int         fmtCfgDescriptor          (char sbuf[], const uint8_t rawdata[], const unsigned indent = 0, const int maxstrsize = ERRBUFSIZE);
+int         fmtIfDescriptor           (char sbuf[], const uint8_t rawdata[], const unsigned indent = 0, const int maxstrsize = ERRBUFSIZE);
+int         fmtEpDescriptor           (char sbuf[], const uint8_t rawdata[], const unsigned indent = 0, const int maxstrsize = ERRBUFSIZE);
+int         fmtHdrFuncDescriptor      (char sbuf[], const uint8_t rawdata[], const unsigned indent = 0, const int maxstrsize = ERRBUFSIZE);
+int         fmtAcmFuncDescriptor      (char sbuf[], const uint8_t rawdata[], const unsigned indent = 0, const int maxstrsize = ERRBUFSIZE);
+int         fmtUnionFuncDescriptor    (char sbuf[], const uint8_t rawdata[], const unsigned indent = 0, const int maxstrsize = ERRBUFSIZE);
+int         fmtCallMgmtFuncDescriptor (char sbuf[], const uint8_t rawdata[], const unsigned indent = 0, const int maxstrsize = ERRBUFSIZE);
+int         fmtCfgAllDescriptor       (char sbuf[], const uint8_t rawdata[], const unsigned indent = 0, const int maxstrsize = ERRBUFSIZE);
+
+const char* fmtFuncDescSubtype        (const uint8_t subtype);
+const char* fmtDecriptorType          (const uint8_t desc);
 const char* fmtLineState              (const unsigned linestate);
+
+int         strToUnicode              (uint16_t* dst, const char*     src, const int maxstrsize = MAXSTRDESCSTRING);
+int         UnicodeToStr              (char*     dst, const uint16_t* src, const int length, const int maxstrsize = MAXSTRDESCSTRING);
 }
 
 #endif

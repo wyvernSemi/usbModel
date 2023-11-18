@@ -63,11 +63,16 @@ namespace usbModel
 
     // -------------------------------------------------------------------------
     // -------------------------------------------------------------------------
-    int fmtDevDescriptor(char sbuf[], const uint8_t rawdata[], const int maxstrsize)
+    int fmtDevDescriptor(char sbuf[], const uint8_t rawdata[], const unsigned indent, const int maxstrsize)
     {
         deviceDesc *desc = (deviceDesc*)rawdata;
 
-        return snprintf(sbuf, maxstrsize,
+        for (int idx = 0; idx < indent; idx++)
+        {
+            sbuf[idx] = ' ';
+        }
+
+        return snprintf(&sbuf[indent], maxstrsize-indent,
                         FMT_DATA_GREY
                         "  bLength                = %d\n"
                         "  bDescriptorType        = %s\n"
@@ -92,209 +97,275 @@ namespace usbModel
 
     // -------------------------------------------------------------------------
     // -------------------------------------------------------------------------
-    int fmtCfgDescriptor(char sbuf[], const uint8_t rawdata[], const int maxstrsize)
+    int fmtCfgDescriptor(char sbuf[], const uint8_t rawdata[], const unsigned indent, const int maxstrsize)
     {
         configDesc *desc = (configDesc*)rawdata;
+        char ibuf[100];
 
-        return snprintf(sbuf, maxstrsize,
+        for (int idx = 0; idx < indent && idx < 100-1; idx++)
+        {
+            ibuf[idx] = ' ';
+        }
+        ibuf[indent] = 0;
+
+        return snprintf(sbuf, maxstrsize-indent,
                         FMT_DATA_GREY
-                        "  bLength                = %d\n"
-                        "  bDescriptorType        = %s\n"
-                        "  wTotalLength           = 0x%04x\n"
-                        "  bNumInterfaces         = 0x%02x\n"
-                        "  bConfigurationValue    = 0x%02x\n"
-                        "  iConfiguration         = 0x%02x\n"
-                        "  bmAttributes           = 0x%02x\n"
-                        "  bMaxPower              = 0x%02x\n"
+                        "%s  bLength                = %d\n"
+                        "%s  bDescriptorType        = %s\n"
+                        "%s  wTotalLength           = 0x%04x\n"
+                        "%s  bNumInterfaces         = 0x%02x\n"
+                        "%s  bConfigurationValue    = 0x%02x\n"
+                        "%s  iConfiguration         = 0x%02x\n"
+                        "%s  bmAttributes           = 0x%02x\n"
+                        "%s  bMaxPower              = 0x%02x\n"
                         FMT_NORMAL,
-                        desc->bLength, fmtDecriptorType(desc->bDescriptorType), desc->wTotalLength,
-                        desc->bNumInterfaces, desc->bConfigurationValue,
-                        desc->iConfiguration, desc->bmAttributes,
-                        desc->bMaxPower);
+                        ibuf, desc->bLength,
+                        ibuf, fmtDecriptorType(desc->bDescriptorType),
+                        ibuf, desc->wTotalLength,
+                        ibuf, desc->bNumInterfaces,
+                        ibuf, desc->bConfigurationValue,
+                        ibuf, desc->iConfiguration,
+                        ibuf, desc->bmAttributes,
+                        ibuf, desc->bMaxPower);
     }
 
     // -------------------------------------------------------------------------
     // -------------------------------------------------------------------------
 
-    int fmtIfDescriptor(char sbuf[], const uint8_t rawdata[], const int maxstrsize)
+    int fmtIfDescriptor(char sbuf[], const uint8_t rawdata[], const unsigned indent, const int maxstrsize)
     {
         interfaceDesc *desc = (interfaceDesc*)rawdata;
+        char ibuf[100];
 
-        return snprintf(sbuf, maxstrsize,
+        for (int idx = 0; idx < indent && idx < 100-1; idx++)
+        {
+            ibuf[idx] = ' ';
+        }
+        ibuf[indent] = 0;
+
+        return snprintf(sbuf, maxstrsize-indent,
                         FMT_DATA_GREY
-                        "  bLength                = %d\n"
-                        "  bDescriptorType        = %s\n"
-                        "  bAlternateSetting      = %02x\n"
-                        "  bNumEndpoints          = %02x\n"
-                        "  bInterfaceClass        = %02x\n"
-                        "  bInterfaceSubClass     = %02x\n"
-                        "  bInterfaceProtocol     = %02x\n"
-                        "  iInterface             = %02x\n"
+                        "%s  bLength                = %d\n"
+                        "%s  bDescriptorType        = %s\n"
+                        "%s  bAlternateSetting      = %02x\n"
+                        "%s  bNumEndpoints          = %02x\n"
+                        "%s  bInterfaceClass        = %02x\n"
+                        "%s  bInterfaceSubClass     = %02x\n"
+                        "%s  bInterfaceProtocol     = %02x\n"
+                        "%s  iInterface             = %02x\n"
                         FMT_NORMAL,
-                        desc->bLength, fmtDecriptorType(desc->bDescriptorType),
-                        desc->bAlternateSetting,
-                        desc->bNumEndpoints,
-                        desc->bInterfaceClass,
-                        desc->bInterfaceSubClass,
-                        desc->bInterfaceProtocol,
-                        desc->iInterface);
+                        ibuf, desc->bLength,
+                        ibuf, fmtDecriptorType(desc->bDescriptorType),
+                        ibuf, desc->bAlternateSetting,
+                        ibuf, desc->bNumEndpoints,
+                        ibuf, desc->bInterfaceClass,
+                        ibuf, desc->bInterfaceSubClass,
+                        ibuf, desc->bInterfaceProtocol,
+                        ibuf, desc->iInterface);
     }
 
     // -------------------------------------------------------------------------
     // -------------------------------------------------------------------------
-    int fmtEpDescriptor  (char sbuf[], const uint8_t rawdata[], const int maxstrsize)
+    int fmtEpDescriptor  (char sbuf[], const uint8_t rawdata[], const unsigned indent, const int maxstrsize)
     {
         endpointDesc *desc = (endpointDesc*)rawdata;
+        char ibuf[100];
 
-        return snprintf(sbuf, maxstrsize,
+        for (int idx = 0; idx < indent && idx < 100-1; idx++)
+        {
+            ibuf[idx] = ' ';
+        }
+        ibuf[indent] = 0;
+
+        return snprintf(sbuf, maxstrsize-indent,
                         FMT_DATA_GREY
-                        "  bLength                = %d\n"
-                        "  bDescriptorType        = %s\n"
-                        "  bEndpointAddress       = %02x\n"
-                        "  bmAttributes           = %02x\n"
-                        "  wMaxPacketSize         = %04x\n"
-                        "  bInterval              = %02x\n"
+                        "%s  bLength                = %d\n"
+                        "%s  bDescriptorType        = %s\n"
+                        "%s  bEndpointAddress       = %02x\n"
+                        "%s  bmAttributes           = %02x\n"
+                        "%s  wMaxPacketSize         = %04x\n"
+                        "%s  bInterval              = %02x\n"
                         FMT_NORMAL,
-                        desc->bLength, fmtDecriptorType(desc->bDescriptorType),
-                        desc->bEndpointAddress,
-                        desc->bmAttributes,
-                        desc->wMaxPacketSize,
-                        desc->bInterval);
+                        ibuf, desc->bLength,
+                        ibuf, fmtDecriptorType(desc->bDescriptorType),
+                        ibuf, desc->bEndpointAddress,
+                        ibuf, desc->bmAttributes,
+                        ibuf, desc->wMaxPacketSize,
+                        ibuf, desc->bInterval);
     }
 
     // -------------------------------------------------------------------------
     // -------------------------------------------------------------------------
 
-    int fmtHdrFuncDescriptor (char sbuf[], const uint8_t rawdata[], const int maxstrsize)
+    int fmtHdrFuncDescriptor (char sbuf[], const uint8_t rawdata[], const unsigned indent, const int maxstrsize)
     {
         headerFuncDesc *desc = (headerFuncDesc*)rawdata;
+        char ibuf[100];
 
-        return snprintf(sbuf, maxstrsize,
+        for (int idx = 0; idx < indent; idx++)
+        {
+            ibuf[idx] = ' ';
+        }
+        ibuf[indent] = 0;
+
+        return snprintf(sbuf, maxstrsize-indent,
                         FMT_DATA_GREY
-                        "  bLength                = %d\n"
-                        "  bDescriptorType        = %s\n"
-                        "  bDescriptorSubType     = %s\n"
-                        "  bcdCDC                 = %02x\n"
+                        "%s  bLength                = %d\n"
+                        "%s  bDescriptorType        = %s\n"
+                        "%s  bDescriptorSubType     = %s\n"
+                        "%s  bcdCDC                 = %02x\n"
                         FMT_NORMAL,
-                        desc->bLength, fmtDecriptorType(desc->bDescriptorType),
-                        fmtFuncDescSubtype(desc->bDescriptorSubType),
-                        desc->bcdCDC);
+                        ibuf, desc->bLength,
+                        ibuf, fmtDecriptorType(desc->bDescriptorType),
+                        ibuf, fmtFuncDescSubtype(desc->bDescriptorSubType),
+                        ibuf, desc->bcdCDC);
     }
 
     // -------------------------------------------------------------------------
     // -------------------------------------------------------------------------
 
-    int fmtAcmFuncDescriptor (char sbuf[], const uint8_t rawdata[], const int maxstrsize)
+    int fmtAcmFuncDescriptor (char sbuf[], const uint8_t rawdata[], const unsigned indent, const int maxstrsize)
     {
         acmFuncDesc *desc = (acmFuncDesc*)rawdata;
+        char ibuf[100];
 
-        return snprintf(sbuf, maxstrsize,
+        for (int idx = 0; idx < indent && idx < 100-1; idx++)
+        {
+            ibuf[idx] = ' ';
+        }
+        ibuf[indent] = 0;
+
+        return snprintf(sbuf, maxstrsize-indent,
                         FMT_DATA_GREY
-                        "  bLength                = %d\n"
-                        "  bDescriptorType        = %s\n"
-                        "  bDescriptorSubType     = %s\n"
-                        "  bmCapabilities         = %02x\n"
+                        "%s  bLength                = %d\n"
+                        "%s  bDescriptorType        = %s\n"
+                        "%s  bDescriptorSubType     = %s\n"
+                        "%s  bmCapabilities         = %02x\n"
                         FMT_NORMAL,
-                        desc->bLength, fmtDecriptorType(desc->bDescriptorType),
-                        fmtFuncDescSubtype(desc->bDescriptorSubType),
-                        desc->bmCapabilities);
+                        ibuf, desc->bLength,
+                        ibuf, fmtDecriptorType(desc->bDescriptorType),
+                        ibuf, fmtFuncDescSubtype(desc->bDescriptorSubType),
+                        ibuf, desc->bmCapabilities);
     }
 
     // -------------------------------------------------------------------------
     // -------------------------------------------------------------------------
 
-    int fmtUnionFuncDescriptor (char sbuf[], const uint8_t rawdata[], const int maxstrsize)
+    int fmtUnionFuncDescriptor (char sbuf[], const uint8_t rawdata[], const unsigned indent, const int maxstrsize)
     {
         unionFuncDesc *desc = (unionFuncDesc*)rawdata;
+        char ibuf[100];
 
-        return snprintf(sbuf, maxstrsize,
+        for (int idx = 0; idx < indent && idx < 100-1; idx++)
+        {
+            ibuf[idx] = ' ';
+        }
+        ibuf[indent] = 0;
+
+        return snprintf(sbuf, maxstrsize-indent,
                         FMT_DATA_GREY
-                        "  bLength                = %d\n"
-                        "  bDescriptorType        = %s\n"
-                        "  bDescriptorSubType     = %s\n"
-                        "  bControlInterface      = %02x\n"
-                        "  bSubordinateInterface0 = %02x\n"
+                        "%s  bLength                = %d\n"
+                        "%s  bDescriptorType        = %s\n"
+                        "%s  bDescriptorSubType     = %s\n"
+                        "%s  bControlInterface      = %02x\n"
+                        "%s  bSubordinateInterface0 = %02x\n"
                         FMT_NORMAL,
-                        desc->bLength, fmtDecriptorType(desc->bDescriptorType),
-                        fmtFuncDescSubtype(desc->bDescriptorSubType),
-                        desc->bControlInterface,
-                        desc->bSubordinateInterface0);
+                        ibuf, desc->bLength,
+                        ibuf, fmtDecriptorType(desc->bDescriptorType),
+                        ibuf, fmtFuncDescSubtype(desc->bDescriptorSubType),
+                        ibuf, desc->bControlInterface,
+                        ibuf, desc->bSubordinateInterface0);
     }
 
     // -------------------------------------------------------------------------
     // -------------------------------------------------------------------------
 
-    int fmtCallMgmtFuncDescriptor (char sbuf[], const uint8_t rawdata[], const int maxstrsize)
+    int fmtCallMgmtFuncDescriptor (char sbuf[], const uint8_t rawdata[], const unsigned indent, const int maxstrsize)
     {
         callMgmtFuncDesc *desc = (callMgmtFuncDesc*)rawdata;
+        char ibuf[100];
 
-        return snprintf(sbuf, maxstrsize,
+        for (int idx = 0; idx < indent && idx < 100-1; idx++)
+        {
+            ibuf[idx] = ' ' ;
+        }
+        ibuf[indent] = 0;
+
+        return snprintf(sbuf, maxstrsize-indent,
                         FMT_DATA_GREY
-                        "  bLength               = %d\n"
-                        "  bDescriptorType       = %s\n"
-                        "  bDescriptorSubType    = %s\n"
-                        "  bmCapabilities        = %02x\n"
-                        "  bmDataInterface       = %02x\n"
+                        "%s  bLength               = %d\n"
+                        "%s  bDescriptorType       = %s\n"
+                        "%s  bDescriptorSubType    = %s\n"
+                        "%s  bmCapabilities        = %02x\n"
+                        "%s  bmDataInterface       = %02x\n"
                         FMT_NORMAL,
-                        desc->bLength, fmtDecriptorType(desc->bDescriptorType),
-                        fmtFuncDescSubtype(desc->bDescriptorSubType),
-                        desc->bmCapabilities,
-                        desc->bmDataInterface);
+                        ibuf, desc->bLength,
+                        ibuf, fmtDecriptorType(desc->bDescriptorType),
+                        ibuf, fmtFuncDescSubtype(desc->bDescriptorSubType),
+                        ibuf, desc->bmCapabilities,
+                        ibuf, desc->bmDataInterface);
     }
 
     // -------------------------------------------------------------------------
     // -------------------------------------------------------------------------
 
-    int fmtCfgAllDescriptor (char sbuf[], const uint8_t rawdata[], const int maxstrsize)
+    int fmtCfgAllDescriptor (char sbuf[], const uint8_t rawdata[], const unsigned indent, const int maxstrsize)
     {
         int     soffset        = 0;
         int     roffset        = 0;
         uint8_t subtype;
+        int     subdescindent  = indent + 2;
 
-        int totallen = ((configDesc*)rawdata)->wTotalLength;
+        int      totallen      = ((configDesc*)rawdata)->wTotalLength;
 
         do
         {
             uint8_t desctype = rawdata[roffset+1];
 
-            USBDEVDEBUG(stderr, "==> fmtCfgAllDescriptor desctype=0x%02x totallen=%d roffset=%d soffset=%d\n", desctype, totallen, roffset, soffset);
+            USBDEVDEBUG("==> fmtCfgAllDescriptor desctype=0x%02x totallen=%d roffset=%d soffset=%d\n", desctype, totallen, roffset, soffset);
+
+            for (int idx = 0; idx < indent; idx++)
+            {
+                sbuf[soffset] = ' ';
+                soffset++;
+            }
 
             switch(desctype)
             {
             case CONFIG_DESCRIPTOR_TYPE:
                 soffset += snprintf(&sbuf[soffset], maxstrsize-soffset,  "\nConfiguration Descriptor:\n\n");
-                soffset += fmtCfgDescriptor(&sbuf[soffset], &rawdata[roffset], maxstrsize-soffset); roffset += rawdata[roffset];
+                soffset += fmtCfgDescriptor(&sbuf[soffset], &rawdata[roffset], 0, maxstrsize-soffset); roffset += rawdata[roffset];
                 break;
             case IF_DESCRIPTOR_TYPE:
-                soffset += snprintf(&sbuf[soffset], maxstrsize-soffset,  "\nInterface Descriptor:\n\n");
-                soffset += fmtIfDescriptor(&sbuf[soffset], &rawdata[roffset], maxstrsize-soffset); roffset+= rawdata[roffset];
+                soffset += snprintf(&sbuf[soffset], maxstrsize-soffset,  "\n..Interface Descriptor:\n\n");
+                soffset += fmtIfDescriptor(&sbuf[soffset], &rawdata[roffset], subdescindent, maxstrsize-soffset); roffset+= rawdata[roffset];
                 break;
             case EP_DESCRIPTOR_TYPE:
-                soffset += snprintf(&sbuf[soffset], maxstrsize-soffset,  "\nEndpoint Descriptor:\n\n");
-                soffset += fmtEpDescriptor(&sbuf[soffset], &rawdata[roffset], maxstrsize-soffset); roffset+= rawdata[roffset];
+                soffset += snprintf(&sbuf[soffset], maxstrsize-soffset,  "\n....Endpoint Descriptor:\n\n");
+                soffset += fmtEpDescriptor(&sbuf[soffset], &rawdata[roffset], subdescindent+2, maxstrsize-soffset); roffset+= rawdata[roffset];
                 break;
             case CS_IF_DESCRIPTOR_TYPE:
                 subtype = rawdata[roffset+2];
                 switch(subtype)
                 {
                 case HEADER_SUBTYPE:
-                    soffset += snprintf(&sbuf[soffset], maxstrsize-soffset,  "\nHeader Function Descriptor:\n\n");
-                    soffset += fmtHdrFuncDescriptor(&sbuf[soffset], &rawdata[roffset], maxstrsize-soffset); roffset+= rawdata[roffset];
+                    soffset += snprintf(&sbuf[soffset], maxstrsize-soffset,  "\n..Header Function Descriptor:\n\n");
+                    soffset += fmtHdrFuncDescriptor(&sbuf[soffset], &rawdata[roffset], subdescindent, maxstrsize-soffset); roffset+= rawdata[roffset];
                     break;
                 case CALL_MGMT_SUBTYPE:
-                    soffset += snprintf(&sbuf[soffset], maxstrsize-soffset,  "\nCall Management Function Descriptor:\n\n");
-                    soffset += fmtCallMgmtFuncDescriptor(&sbuf[soffset], &rawdata[roffset], maxstrsize-soffset); roffset+= rawdata[roffset];
+                    soffset += snprintf(&sbuf[soffset], maxstrsize-soffset,  "\n..Call Management Function Descriptor:\n\n");
+                    soffset += fmtCallMgmtFuncDescriptor(&sbuf[soffset], &rawdata[roffset], subdescindent, maxstrsize-soffset); roffset+= rawdata[roffset];
                     break;
                 case ACM_SUBTYPE:
-                    soffset += snprintf(&sbuf[soffset], maxstrsize-soffset,  "\nAbstract Control Management Functional Descriptor:\n\n");
-                    soffset += fmtAcmFuncDescriptor(&sbuf[soffset], &rawdata[roffset], maxstrsize-soffset); roffset+= rawdata[roffset];
+                    soffset += snprintf(&sbuf[soffset], maxstrsize-soffset,  "\n..Abstract Control Management Functional Descriptor:\n\n");
+                    soffset += fmtAcmFuncDescriptor(&sbuf[soffset], &rawdata[roffset], subdescindent, maxstrsize-soffset); roffset+= rawdata[roffset];
                     break;
                 case UNION_SUBTYPE:
-                    soffset += snprintf(&sbuf[soffset], maxstrsize-soffset,  "\nUnion Function Descriptor:\n\n");
-                    soffset += fmtUnionFuncDescriptor(&sbuf[soffset], &rawdata[roffset], maxstrsize-soffset); roffset+= rawdata[roffset];
+                    soffset += snprintf(&sbuf[soffset], maxstrsize-soffset,  "\n..Union Function Descriptor:\n\n");
+                    soffset += fmtUnionFuncDescriptor(&sbuf[soffset], &rawdata[roffset], subdescindent, maxstrsize-soffset); roffset+= rawdata[roffset];
                     break;
                 default:
-                    soffset += snprintf(&sbuf[soffset],  maxstrsize-soffset, "\nUNKNOWN descriptor subtype (0x%02x)\n\n", subtype);
+                    soffset += snprintf(&sbuf[soffset],  maxstrsize-soffset, "\n  UNKNOWN descriptor subtype (0x%02x)\n\n", subtype);
                     return USBERROR;
                     break;
                 }
@@ -309,6 +380,36 @@ namespace usbModel
         snprintf(&sbuf[soffset], maxstrsize-soffset, "\n");
 
         return USBOK;
+    }
+
+    // -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+
+    int strToUnicode (uint16_t* dst, const char* src, const int maxstrsize)
+    {
+        int idx;
+        for (idx = 0; idx < maxstrsize && src[idx] != 0; idx++)
+        {
+            dst[idx]     = (uint16_t)src[idx];
+        }
+
+        return idx * 2;
+    }
+
+    // -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+
+    int UnicodeToStr (char* dst, const uint16_t* src, const int length, const int maxstrsize)
+    {
+        int idx;
+        for (idx = 0; idx < maxstrsize && idx < length; idx++)
+        {
+            dst[idx]     = (uint8_t)(src[idx] & 0xff);
+        }
+
+        dst[idx] = 0;
+
+        return idx;
     }
 
     // -------------------------------------------------------------------------

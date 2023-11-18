@@ -68,7 +68,7 @@ public:
         {
         }
     };
-
+    
     static const int      PID_NO_CHECK             = usbModel::PID_INVALID;
     static const int      DEFAULT_IDLE             = 36;
 
@@ -81,6 +81,15 @@ public:
         selfPowered(usbModel::USB_NOT_SELF_POWERED),
         timeSinceLastSof(0)
     {
+        strdesc[0].bLength    = 6; // bLength + bDescriptorType bytes plus two wLANGID entries (2 bytes each)
+        strdesc[0].bString[0] = 0x0809; // English UK
+        strdesc[0].bString[1] = 0x0409; // English US
+        
+        strdesc[1].bLength = 2;  // bLength + bDescriptorType bytes
+        strdesc[1].bLength += usbModel::strToUnicode(strdesc[1].bString, "github.com/wyvernSemi");
+        
+        strdesc[2].bLength = 2;  // bLength + bDescriptorType bytes
+        strdesc[2].bLength += usbModel::strToUnicode(strdesc[2].bString, "usbModel");
         reset();
     };
 
@@ -132,7 +141,9 @@ private:
     usbModel::usb_signal_t nrzi   [usbModel::MAXBUFSIZE];
     char                   sbuf   [usbModel::ERRBUFSIZE];
 
+    // DEvice's descriptors
     usbModel::deviceDesc   devdesc;
+    usbModel::stringDesc   strdesc[3];
     cfgAllBuf              cfgalldesc;
 
 

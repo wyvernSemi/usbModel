@@ -91,6 +91,25 @@ extern "C" void VUserMain0()
         usbModel::fmtCfgAllDescriptor(scratchbuf, rxdata);
         fprintf(stderr, "\nVUserMain0: received config descriptor\n\n%s", scratchbuf);
 
+        // Get string descriptor 0
+        host.getStrDescriptor(addr, endp, 0, rxdata, 0xff, rxlen, false);
+        fprintf(stderr, "\nVUserMain0: received string descriptor index 0\n");
+        for (int idx = 0; idx < (rxlen-2)/2; idx++)
+        {
+            fprintf(stderr, "  wLANGID[%d] = 0x%04x\n", idx, ((uint16_t*)&rxdata[2])[idx]);
+        }
+        fprintf(stderr, "\n");
+        
+        // Get string descriptor 1
+        host.getStrDescriptor(addr, endp, 1, rxdata, 0xff, rxlen, false);
+        fprintf(stderr, "\nVUserMain0: received string descriptor index 1\n");
+        fprintf(stderr, "  \"%s\"\n\n", &rxdata);
+        
+        // Get string descriptor 2
+        host.getStrDescriptor(addr, endp, 2, rxdata, 0xff, rxlen, false);
+        fprintf(stderr, "\nVUserMain0: received string descriptor index 2\n");
+        fprintf(stderr, "  \"%s\"\n\n", &rxdata);
+
         // Get the device status
         host.getDeviceStatus(addr, endp, dev_status);
         fprintf(stderr, "\nVUserMain0: received device status of 0x%04x\n\n", dev_status);
