@@ -87,7 +87,7 @@ namespace usbModel
     static const int      USBUNSUPPORTED           = -2;
     static const int      USBRESET                 = -3;
     static const int      USBSUSPEND               = -4;
-    static const int      ERRBUFSIZE               = 512;
+    static const int      ERRBUFSIZE               = 8192;
     static const int      MAXBUFSIZE               = 2048;
 
     static const int      MINPKTSIZEBITS           = 16;
@@ -308,7 +308,7 @@ namespace usbModel
         uint8_t        bDescriptorType;
         uint8_t        bDescriptorSubType;
         uint8_t        bControlInterface;
-        uint8_t        bSubordinateInteface0;
+        uint8_t        bSubordinateInterface0;
 
         unionFuncDesc()
         {
@@ -316,7 +316,7 @@ namespace usbModel
             bDescriptorType       = CS_IF_DESCRIPTOR_TYPE;             // CS_INTERFACE
             bDescriptorSubType    = UNION_SUBTYPE;                     // Union
             bControlInterface     = 0x00;                              // Control interface is interface 0
-            bSubordinateInteface0 = 0x01;                              // Subordinate interface is interface 1
+            bSubordinateInterface0 = 0x01;                             // Subordinate interface is interface 1
         }
     };
 

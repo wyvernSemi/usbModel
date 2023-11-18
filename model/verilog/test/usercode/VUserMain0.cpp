@@ -78,7 +78,8 @@ extern "C" void VUserMain0()
         // the config descriptor, so just ask for the number of bytes required for the
         // first descriptor (the config)
         host.getConfigDescriptor(addr, endp, rxdata, sizeof(usbModel::configDesc), rxlen, false);
-        fprintf(stderr, "\nVUserMain0: received config descriptor\n\n%s", "");
+        usbModel::fmtCfgDescriptor(scratchbuf, rxdata);
+        fprintf(stderr, "\nVUserMain0: received config descriptor\n\n%s\n", scratchbuf);
 
         // Extract the total length of the combined descriptors
         usbModel::configDesc *pCfgDesc = (usbModel::configDesc *)rxdata;
@@ -86,7 +87,9 @@ extern "C" void VUserMain0()
 
         // Now request the lot
         host.getConfigDescriptor(addr, endp, rxdata, wTotalLength, rxlen, false);
-        fprintf(stderr, "\nVUserMain0: received config descriptor\n\n%s", "");
+        scratchbuf[0] = 0;
+        usbModel::fmtCfgAllDescriptor(scratchbuf, rxdata);
+        fprintf(stderr, "\nVUserMain0: received config descriptor\n\n%s", scratchbuf);
 
         // Get the device status
         host.getDeviceStatus(addr, endp, dev_status);
