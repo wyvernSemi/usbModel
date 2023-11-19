@@ -51,10 +51,20 @@ uint32_t usbPkt::bitrev(const uint32_t Data, const int bits)
 }
 
 // -------------------------------------------------------------------------
-// crc16 = x^16 + x^15 + x^2 + 1
+// usbcrc16
+//
+// Sixteen bit CRC generation for polynomial:
+//   crc16 = x^16 + x^15 + x^2 + 1
+//
+// Data for CRC is pass in as a usb_signal_t, but only dp used, with
+// the length of the data (in bytes) specified with len. The
+// length is expected to be byte aligned. The CRC is initialised with
+// crcinit before calculation. The result is bit reversed
+// before returning value.
+//
 // -------------------------------------------------------------------------
 
-int usbPkt::usbcrc16(const usbModel::usb_signal_t data[], const unsigned len, const unsigned crcinit)
+int usbPkt::usbcrc16 (const usbModel::usb_signal_t data[], const unsigned len, const unsigned crcinit)
 {
     unsigned crc = crcinit;
 
@@ -70,7 +80,17 @@ int usbPkt::usbcrc16(const usbModel::usb_signal_t data[], const unsigned len, co
 }
 
 // -------------------------------------------------------------------------
-// crc5  =  x^5 +  x^2 + 1
+// usbcrc5
+//
+// Five bit CRC generation for polynomial:
+//   crc5  =  x^5 +  x^2 + 1
+//
+// Data for CRC is pass in as a usb_signal_t, but only dp used, with
+// the length of the data (in bytes) specified with len. The
+// data may not be byte aligned, so the number of trailing bits is 
+// specified in endbits. The CRC is initialised with crcinit before
+// calculation. The result is bit reversed before returning value.
+//
 // -------------------------------------------------------------------------
 
 int usbPkt::usbcrc5(const usbModel::usb_signal_t data[], const unsigned len, const int endbits, const unsigned crcinit )
@@ -90,7 +110,16 @@ int usbPkt::usbcrc5(const usbModel::usb_signal_t data[], const unsigned len, con
 }
 
 // -------------------------------------------------------------------------
-// NRZI encoding
+// nrziEnc
+//
+// NRZI encoding of raw byte data (raw[]), with result placed in nrzi[].
+// The length (in bytes) of data to encode is specified in len, and the
+// state of the line (J or K) prior to the start of this encoding is
+// given in start. Bit stuffing is performed by inserting a virtual 0 in the
+// input data when 6 consecutive 1s are seen.
+// 
+// The method returns the number of bits generated in the encoding.
+// 
 // -------------------------------------------------------------------------
 
 int usbPkt::nrziEnc(const usbModel::usb_signal_t raw[], usbModel::usb_signal_t nrzi[], const unsigned len, const int start)
@@ -177,13 +206,22 @@ int usbPkt::nrziEnc(const usbModel::usb_signal_t raw[], usbModel::usb_signal_t n
     return bitcnt;
 }
 
-
 // -------------------------------------------------------------------------
-// NRZI decode with bit-stuffing removal. Checks errors for:
+// nrziDec
 //
-//  SE1
-//  Bad SE0
-//  Bad EOP sequence
+// Decodes NRZI data from nrzi[] and places decoded bytes in raw[]. The
+// state of the line before the decode is specified in start. The method
+// will remove stuffed bits (the bit following 6 consectived decoded
+// 1s).
+//
+// The method checks errors on the input for:
+//
+//   SE1
+//   Bad SE0
+//   Bad EOP sequence
+//
+// The bit count of the decoded data is returned if there are no errors,
+// else usbModel::USBERROR is returned.
 //
 // -------------------------------------------------------------------------
 
@@ -296,10 +334,19 @@ int usbPkt::nrziDec(const usbModel::usb_signal_t nrzi[], usbModel::usb_signal_t 
 
         ibyte++;
     }
+    
+    // Should never reach here.
+    return usbModel::USBERROR;
 }
 
 // -------------------------------------------------------------------------
-// Handshake and preamble packet generation
+// usbPktGen (for handshake/preamble)
+// 
+// Generates a handshake or preamble token packet, as specified by pid,
+// and places it in buf[]. It will return usbModel::USBERROR if the
+// pid is not a valid type for this packet, or if NRZI encoding
+// failed.
+//
 // -------------------------------------------------------------------------
 
 int usbPkt::usbPktGen(usbModel::usb_signal_t buf[], const int pid)
@@ -335,7 +382,13 @@ int usbPkt::usbPktGen(usbModel::usb_signal_t buf[], const int pid)
 }
 
 // -------------------------------------------------------------------------
-// Token generation (not SOF)
+// usbPktGen (for SOF)
+// 
+// Generates a token packet (not SOF), as specified by pid,
+// and places it in buf[]. It will return usbModel::USBERROR if the
+// pid is not a valid type for this packet, or if NRZI encoding
+// failed.
+//
 // -------------------------------------------------------------------------
 
 int usbPkt::usbPktGen(usbModel::usb_signal_t buf[], const int pid, const uint8_t addr, const uint8_t endp)
@@ -398,7 +451,13 @@ int usbPkt::usbPktGen(usbModel::usb_signal_t buf[], const int pid, const uint8_t
 }
 
 // -------------------------------------------------------------------------
-// SOF token generation
+// usbPktGen (for SOF token)
+// 
+// Generates an AOF token packet, as specified by pid,
+// and places it in buf[]. It will return usbModel::USBERROR if the
+// pid is not a valid type for this packet, or if NRZI encoding
+// failed.
+//
 // -------------------------------------------------------------------------
 
 int usbPkt::usbPktGen(usbModel::usb_signal_t buf[], const int pid, const uint16_t framenum)
@@ -452,7 +511,13 @@ int usbPkt::usbPktGen(usbModel::usb_signal_t buf[], const int pid, const uint16_
 }
 
 // -------------------------------------------------------------------------
-// Data Packet generation
+// usbPktGen (for DATAx)
+// 
+// Generates a DATAx packet, as specified by pid,
+// and places it in buf[]. It will return usbModel::USBERROR if the
+// pid is not a valid type for this packet, or if NRZI encoding
+// failed.
+//
 // -------------------------------------------------------------------------
 
 int usbPkt::usbPktGen(usbModel::usb_signal_t buf[], const int pid, const uint8_t data[], const unsigned len)
@@ -540,14 +605,28 @@ int usbPkt::usbPktGen(usbModel::usb_signal_t buf[], const int pid, const uint8_t
 
 
 // -------------------------------------------------------------------------
+// usbPktDecode
+//
+// Decodes a received NRZI packet (in nrzibuf[]), returing the PID in pid,
+// and other extracted values in args[] (the number of arguments dependant
+// on the packet type. The data (if any) is placed in data[] and the length
+// (in bytes) of this data returned in databytes.
+// 
+// The method returns usbModel::USBERROR if NRZI decoding fails, if
+// the PID field upper bits not inverse of lower bits, CRC checks fail,
+// or the PID is invalid. If the PID is valid but not yet supported, then
+// usbModel::USBUNSUPPORTED is returned. If decoding was error free then
+// usbModel::USBOK is returned. 
+//  
 // -------------------------------------------------------------------------
 
 int usbPkt::usbPktDecode(const usbModel::usb_signal_t nrzibuf[], int& pid, uint32_t args[], uint8_t data[], int &databytes)
 {
-    databytes = 0;
-
     int crc;
     int idx;
+    
+    // Default data length is zero
+    databytes = 0;
 
     // NRZI decode
     int bitcnt = nrziDec(nrzibuf, rawbuf);

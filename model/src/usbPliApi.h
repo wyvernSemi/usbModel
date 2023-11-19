@@ -30,6 +30,7 @@
 
 extern "C"
 {
+// VProc API
 #include "VUser.h"
 }
 
@@ -58,13 +59,31 @@ private:
 public:
 
     //-------------------------------------------------------------
+    // Constructor
+    //
+    // Must give a node number which must be unique for all usbDevice
+    // and usbHost objects and match the NODENUM parameter of the
+    // usbModel instantiation in the verilog that it's meant to drive.
+    // 
+    // An option string argument can be supplied to use in formatted
+    // output.
+    //
     //-------------------------------------------------------------
 
-    usbPliApi(const int nodeIn, std::string name = std::string("ENDP")) : node(nodeIn)
+    usbPliApi(const int nodeIn, std::string name = std::string("DEV ")) : node(nodeIn)
     {
     }
 
     //-------------------------------------------------------------
+    // apiGetClkCount
+    //
+    // Returns the value of the clkcount register in the verilog
+    // which increments from time 0 one per system clock.
+    //
+    // An optional delta argument allows simuation time to advance
+    // If set to DELTA_CYCLE (default), simulation time is not
+    // advanced. If set to 0, time is advanced.
+    //
     //-------------------------------------------------------------
 
     unsigned apiGetClkCount(int delta = DELTA_CYCLE)
@@ -77,18 +96,29 @@ public:
     }
 
     //-------------------------------------------------------------
+    // apiReadLineState
+    //
+    // Returns the state of the USB line as a two bits in an
+    // unsigned number with D+ in bit 0 an D- in bit 1.
+    //
     //-------------------------------------------------------------
 
-    unsigned apiReadLineState(int delta = 0)
+    unsigned apiReadLineState()
     {
         unsigned rawline;
 
-        VRead(LINE, &rawline, delta, node);
+        VRead(LINE, &rawline, 0, node);
 
         return rawline;
     }
 
     //-------------------------------------------------------------
+    // apiSendIdle
+    //
+    // Advance simulation time for specified number of clock ticks
+    // (default 1) whilst drive the line at the idle state
+    // (OE inactive).
+    //
     //-------------------------------------------------------------
 
     void apiSendIdle(const unsigned ticks = 1)
@@ -109,6 +139,14 @@ public:
     }
 
     //-------------------------------------------------------------
+    // apiSendPacket
+    //
+    // Sends an NRZI encoded packet (nrzi[]) over the USB interface
+    // for the specified number of bits (bitlen). An idle period
+    // is generated first as specified by delay. The output enable
+    // is activated when sending the packet and deactivated when
+    // complete.
+    //
     //-------------------------------------------------------------
 
     void apiSendPacket(const usbModel::usb_signal_t nrzi[], const int bitlen, const int delay = 50)
@@ -273,6 +311,11 @@ public:
     }
 
     //-------------------------------------------------------------
+    // apiWaitOnNotReset
+    //
+    // Polls the state of the nreset input port of usbModel module
+    // until it becomes inactive.
+    //
     //-------------------------------------------------------------
 
     void apiWaitOnNotReset(void)
@@ -285,6 +328,14 @@ public:
     }
 
     //-------------------------------------------------------------
+    // usbEnablePullup
+    //
+    // Enables the pullup(s) on the usbModel module instantiation.
+    // The default of this at time 0 is dependent on whether
+    // configured as a host (default enabled) or a device (default
+    // disabled). Enabling on a device can be seen by the host
+    // a device connection, and disabling as a diconnection.
+    //
     //-------------------------------------------------------------
 
     void apiEnablePullup(void)
@@ -293,6 +344,14 @@ public:
     }
 
     //-------------------------------------------------------------
+    // usbDisablePullup
+    //
+    // Diables the pullup(s) on the usbModel module instantiation.
+    // The default of this at time 0 is dependent on whether
+    // configured as a host (default enabled) or a device (default
+    // disabled). Enabling on a device can be seen by the host
+    // a device connection, and disabling as a diconnection.
+    //
     //-------------------------------------------------------------
 
     void apiDisablePullup(void)
@@ -301,6 +360,11 @@ public:
     }
 
     //-------------------------------------------------------------
+    // apiReset
+    //
+    // Externally called method to force intenal state to be reset
+    // separate from a USB reset condition.
+    //
     //-------------------------------------------------------------
 
     void apiReset()
@@ -309,6 +373,13 @@ public:
     }
 
     //-------------------------------------------------------------
+    // apiHaltSimulation
+    //
+    // Halts the simulation.
+    //
+    // When run in batch mode this will call $finish in the usbModel
+    // model and $stop when in GUI mode.
+    //
     //-------------------------------------------------------------
 
     void apiHaltSimulation()
@@ -318,7 +389,14 @@ public:
 
 private:
 
+    //-------------------------------------------------------------
+    // Internal private state.
+    //-------------------------------------------------------------
+    
+    // Node number of VProc module for this API object
     int  node;
+    
+    // Suspended state
     bool suspended;
 
 };

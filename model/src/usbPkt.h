@@ -36,53 +36,86 @@ class usbPkt
 {
 public:
 
+    //-------------------------------------------------------------
     // Constructor
+    //-------------------------------------------------------------
+    
     usbPkt(std::string _name = "ENDP") : rawbuf(), errbuf{ 0 }
     {
         name = _name;
         reset();
     }
 
+    //-------------------------------------------------------------
+    // Return last error message
+    //-------------------------------------------------------------
     void usbPktGetErrMsg(char* msg)
     {
         sprintf(msg, "%s", errbuf);
     }
 
+    //-------------------------------------------------------------
     // Packet generation methods
+    //-------------------------------------------------------------
+    
     int          usbPktGen    (usbModel::usb_signal_t nrzibuf[], const int pid);                                              // Handshake
     int          usbPktGen    (usbModel::usb_signal_t nrzibuf[], const int pid, const uint8_t  addr,   const uint8_t endp);   // Token
     int          usbPktGen    (usbModel::usb_signal_t nrzibuf[], const int pid, const uint16_t framenum);                     // SOF
     int          usbPktGen    (usbModel::usb_signal_t nrzibuf[], const int pid, const uint8_t  data[], const unsigned len);   // Data
 
+    //-------------------------------------------------------------
     // Packet decode method
+    //-------------------------------------------------------------
+    
     int          usbPktDecode (const usbModel::usb_signal_t nrzibuf[], int& pid, uint32_t args[], uint8_t data[], int &databytes);
 
 protected:
 
-    void         reset    (void)
+    //-------------------------------------------------------------
+    // Force reset of internal state
+    //-------------------------------------------------------------
+    
+    void         reset       (void)
     {
         currspeed = usbModel::usb_speed_e::FS;
     }
 
+     //-------------------------------------------------------------
+     // Protected state
+     //-------------------------------------------------------------
+     
     // Buffer for error messages
     char         errbuf[usbModel::ERRBUFSIZE];
 
+    // Formatted output display name string
     std::string name;
 
 private:
-
+    //-------------------------------------------------------------
     // CRC generation methods
+    //-------------------------------------------------------------
+    
     int          usbcrc16(const usbModel::usb_signal_t data[], const unsigned len = 1, const unsigned crcinit = 0xffff);
     int          usbcrc5 (const usbModel::usb_signal_t data[], const unsigned len = 1, const int      endbits = 8, const unsigned crcinit = 0x1f);
 
+    //-------------------------------------------------------------
     // Bit reversal utility method
+    //-------------------------------------------------------------
+    
     uint32_t     bitrev  (const uint32_t     data,   const int      bits);
 
+    //-------------------------------------------------------------
     // NRZI methods
-    int          nrziEnc (const usbModel::usb_signal_t raw[],  usbModel::usb_signal_t   nrzi[],  const unsigned len,         const int start = 1);
+    //-------------------------------------------------------------
+    
+    int          nrziEnc (const usbModel::usb_signal_t raw[],  usbModel::usb_signal_t   nrzi[],  const unsigned len, const int start = 1);
     int          nrziDec (const usbModel::usb_signal_t nrzi[], usbModel::usb_signal_t   raw[],   const int start = 1);
 
-    // Debug method to return differential signal state as printable character: K, J, SE0 (0) or SE1 (1)
+    //-------------------------------------------------------------
+    // Debug method to return differential signal state as
+    // printable character: K, J, SE0 (0) or SE1 (1)
+    //-------------------------------------------------------------
+    
     char bitenc(usbModel::usb_signal_t raw, const int bit)
     {
         uint8_t se = ~(raw.dp ^ raw.dm);
@@ -92,6 +125,10 @@ private:
                (raw.dp         & (1 << bit)) ? 'J' :
                                                'K';
     }
+    
+    //-------------------------------------------------------------
+    // Internal private state
+    //-------------------------------------------------------------
 
     // Internal buffer for constructing raw, non-NRZI encoded packets
     usbModel::usb_signal_t rawbuf [usbModel::MAXBUFSIZE];
