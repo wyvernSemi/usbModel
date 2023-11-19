@@ -2,7 +2,7 @@
 //
 // Copyright (c) 2023 Simon Southwell. All rights reserved.
 //
-// Date: 13th Novenmber 2023
+// Date: 13th November 2023
 //
 // Contains the usbModel formatting, error and debug
 // definitions and macros

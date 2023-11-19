@@ -2,7 +2,7 @@
 //
 // Copyright (c) 2023 Simon Southwell. All rights reserved.
 //
-// Date: 8th Novenmber 2023
+// Date: 8th November 2023
 //
 // Contains the code for the usbModel common definitions
 //

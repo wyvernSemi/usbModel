@@ -2,7 +2,7 @@
 //
 // Copyright (c) 2023 Simon Southwell. All rights reserved.
 //
-// Date: 16th Novenmber 2023
+// Date: 16th November 2023
 //
 // Contains the usbModel formatting functions
 //
