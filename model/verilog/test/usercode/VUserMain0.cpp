@@ -42,42 +42,57 @@ static char    scratchbuf [usbModel::ERRBUFSIZE];
 
 extern "C" void VUserMain0()
 {
-    unsigned             linestate;
+    int                  linestate;
     uint16_t             dev_status;
-    uint8_t              addr         = 0;
-    uint8_t              endp         = 0;
+    uint8_t              addr;
+    uint8_t              endp;
     uint16_t             rxlen;
 
     // Create host interface object to usbModel
     usbHost host(node);
 
     // Wait for reset to be deasserted
-    host.waitOnNotReset();
+    host.apiWaitOnNotReset();
 
-    host.SendIdle(100);
+    host.apiSendIdle(100);
 
-    // Check that there is a connected device and it's a full speed endpoint
-    if ((linestate = host.readLineState()) != usbModel::USB_J)
+    // Wait for a connection...
+    if ((linestate = host.usbHostWaitForConnection()) != usbModel::USB_J)
     {
-        fprintf(stderr, "\nVUserMain0: ***ERROR: USB line state (%s) does not indicate a full speed device connected\n",
-            usbModel::fmtLineState(linestate));
+        // If an error occurred, then the method timed out waiting
+        if (linestate == usbModel::USBERROR)
+        {
+            host.usbPktGetErrMsg(scratchbuf);
+            fprintf(stderr, "\nVUserMain0: ***ERROR: %s\n", scratchbuf);
+        }
+        // If a valid linestate, but not J then not a full speed connection
+        else
+        {
+            fprintf(stderr, "\nVUserMain0: ***ERROR: USB line state (%s) does not indicate a full speed device connected\n",
+                usbModel::fmtLineState(linestate));
+        }
     }
+    // Successfully connected, so start generating traffic
     else
     {
         // Get the device descriptor
-        host.getDeviceDescriptor  (addr, endp, rxdata, 0x00FF, rxlen, false);
+        host.usbHostGetDeviceDescriptor (usbModel::CONTROL_ADDR, usbModel::CONTROL_EP, rxdata, 0x00FF, rxlen, false);
+        
         usbModel::fmtDevDescriptor(scratchbuf, rxdata);
         fprintf(stderr, "\nVUserMain0: received device descriptor\n\n%s", scratchbuf);
 
         // Set the device address to 1
-        host.setAddress(addr, endp, 0x0001);
         addr = 1;
+        endp = 0;
+        host.usbHostSetAddress(usbModel::CONTROL_ADDR, usbModel::CONTROL_EP, addr);
+
         fprintf(stderr, "\nVUserMain0: sent SET_ADDR (0x%04x)\n\n", addr);
 
         // Get the configuration descriptor. Device will want to return all descriptors under
         // the config descriptor, so just ask for the number of bytes required for the
         // first descriptor (the config)
-        host.getConfigDescriptor(addr, endp, rxdata, sizeof(usbModel::configDesc), rxlen, false);
+        host.usbHostGetConfigDescriptor(addr, endp, rxdata, sizeof(usbModel::configDesc), rxlen, false);
+
         usbModel::fmtCfgDescriptor(scratchbuf, rxdata);
         fprintf(stderr, "\nVUserMain0: received config descriptor\n\n%s\n", scratchbuf);
 
@@ -86,40 +101,44 @@ extern "C" void VUserMain0()
         uint16_t wTotalLength = pCfgDesc-> wTotalLength;
 
         // Now request the lot
-        host.getConfigDescriptor(addr, endp, rxdata, wTotalLength, rxlen, false);
-        scratchbuf[0] = 0;
+        host.usbHostGetConfigDescriptor(addr, endp, rxdata, wTotalLength, rxlen, false);
+
         usbModel::fmtCfgAllDescriptor(scratchbuf, rxdata);
         fprintf(stderr, "\nVUserMain0: received config descriptor\n\n%s", scratchbuf);
 
         // Get string descriptor 0
-        host.getStrDescriptor(addr, endp, 0, rxdata, 0xff, rxlen, false);
+        host.usbHostGetStrDescriptor(addr, endp, 0, rxdata, 0xff, rxlen, false);
+
         fprintf(stderr, "\nVUserMain0: received string descriptor index 0\n");
         for (int idx = 0; idx < (rxlen-2)/2; idx++)
         {
             fprintf(stderr, "  wLANGID[%d] = 0x%04x\n", idx, ((uint16_t*)&rxdata[2])[idx]);
         }
         fprintf(stderr, "\n");
-        
+
         // Get string descriptor 1
-        host.getStrDescriptor(addr, endp, 1, rxdata, 0xff, rxlen, false);
+        host.usbHostGetStrDescriptor(addr, endp, 1, rxdata, 0xff, rxlen, false);
+
         fprintf(stderr, "\nVUserMain0: received string descriptor index 1\n");
         fprintf(stderr, "  \"%s\"\n\n", &rxdata);
-        
+
         // Get string descriptor 2
-        host.getStrDescriptor(addr, endp, 2, rxdata, 0xff, rxlen, false);
+        host.usbHostGetStrDescriptor(addr, endp, 2, rxdata, 0xff, rxlen, false);
+
         fprintf(stderr, "\nVUserMain0: received string descriptor index 2\n");
         fprintf(stderr, "  \"%s\"\n\n", &rxdata);
 
         // Get the device status
-        host.getDeviceStatus(addr, endp, dev_status);
-        fprintf(stderr, "\nVUserMain0: received device status of 0x%04x\n\n", dev_status);
+        host.usbHostGetDeviceStatus(addr, endp, dev_status);
 
+        fprintf(stderr, "\nVUserMain0: received device status of 0x%04x\n\n", dev_status);
     }
 
-    host.SendIdle(100);
+    // Wait a bit before halting to let the device receive the ACK
+    host.apiSendIdle(100);
 
     // Halt the simulation
-    host.haltSimulation();
+    host.apiHaltSimulation();
 
 
 }

@@ -161,6 +161,9 @@ namespace usbModel
     static const uint8_t  UNION_SUBTYPE            = 0x06;
     
     static const int      MAXSTRDESCSTRING         = 64;
+    
+    static const uint8_t  CONTROL_ADDR             = 0x00;
+    static const uint8_t  CONTROL_EP               = 0x00;
 
 // As these descriptor structures will used to form a single
 // super-configuration structure, padding beyond bytes must be disabled

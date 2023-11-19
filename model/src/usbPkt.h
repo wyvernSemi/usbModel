@@ -43,19 +43,19 @@ public:
         reset();
     }
 
-    void getUsbErrMsg(char* msg)
+    void usbPktGetErrMsg(char* msg)
     {
         sprintf(msg, "%s", errbuf);
     }
 
     // Packet generation methods
-    int          genUsbPkt    (usbModel::usb_signal_t nrzibuf[], const int pid);                                              // Handshake
-    int          genUsbPkt    (usbModel::usb_signal_t nrzibuf[], const int pid, const uint8_t  addr,   const uint8_t endp);   // Token
-    int          genUsbPkt    (usbModel::usb_signal_t nrzibuf[], const int pid, const uint16_t framenum);                     // SOF
-    int          genUsbPkt    (usbModel::usb_signal_t nrzibuf[], const int pid, const uint8_t  data[], const unsigned len);   // Data
+    int          usbPktGen    (usbModel::usb_signal_t nrzibuf[], const int pid);                                              // Handshake
+    int          usbPktGen    (usbModel::usb_signal_t nrzibuf[], const int pid, const uint8_t  addr,   const uint8_t endp);   // Token
+    int          usbPktGen    (usbModel::usb_signal_t nrzibuf[], const int pid, const uint16_t framenum);                     // SOF
+    int          usbPktGen    (usbModel::usb_signal_t nrzibuf[], const int pid, const uint8_t  data[], const unsigned len);   // Data
 
     // Packet decode method
-    int          decodePkt (const usbModel::usb_signal_t nrzibuf[], int& pid, uint32_t args[], uint8_t data[], int &databytes);
+    int          usbPktDecode (const usbModel::usb_signal_t nrzibuf[], int& pid, uint32_t args[], uint8_t data[], int &databytes);
 
 protected:
 

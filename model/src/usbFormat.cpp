@@ -385,7 +385,7 @@ namespace usbModel
     // -------------------------------------------------------------------------
     // -------------------------------------------------------------------------
 
-    int strToUnicode (uint16_t* dst, const char* src, const int maxstrsize)
+    int fmtStrToUnicode (uint16_t* dst, const char* src, const int maxstrsize)
     {
         int idx;
         for (idx = 0; idx < maxstrsize && src[idx] != 0; idx++)
@@ -399,7 +399,7 @@ namespace usbModel
     // -------------------------------------------------------------------------
     // -------------------------------------------------------------------------
 
-    int UnicodeToStr (char* dst, const uint16_t* src, const int length, const int maxstrsize)
+    int fmtUnicodeToStr (char* dst, const uint16_t* src, const int length, const int maxstrsize)
     {
         int idx;
         for (idx = 0; idx < maxstrsize && idx < length; idx++)

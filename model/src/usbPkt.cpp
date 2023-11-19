@@ -302,7 +302,7 @@ int usbPkt::nrziDec(const usbModel::usb_signal_t nrzi[], usbModel::usb_signal_t 
 // Handshake and preamble packet generation
 // -------------------------------------------------------------------------
 
-int usbPkt::genUsbPkt(usbModel::usb_signal_t buf[], const int pid)
+int usbPkt::usbPktGen(usbModel::usb_signal_t buf[], const int pid)
 {
     int idx = 0;
 
@@ -338,7 +338,7 @@ int usbPkt::genUsbPkt(usbModel::usb_signal_t buf[], const int pid)
 // Token generation (not SOF)
 // -------------------------------------------------------------------------
 
-int usbPkt::genUsbPkt(usbModel::usb_signal_t buf[], const int pid, const uint8_t addr, const uint8_t endp)
+int usbPkt::usbPktGen(usbModel::usb_signal_t buf[], const int pid, const uint8_t addr, const uint8_t endp)
 {
     int idx = 0;
     unsigned crc;
@@ -401,7 +401,7 @@ int usbPkt::genUsbPkt(usbModel::usb_signal_t buf[], const int pid, const uint8_t
 // SOF token generation
 // -------------------------------------------------------------------------
 
-int usbPkt::genUsbPkt(usbModel::usb_signal_t buf[], const int pid, const uint16_t framenum)
+int usbPkt::usbPktGen(usbModel::usb_signal_t buf[], const int pid, const uint16_t framenum)
 {
     int idx = 0;
     unsigned crc;
@@ -455,7 +455,7 @@ int usbPkt::genUsbPkt(usbModel::usb_signal_t buf[], const int pid, const uint16_
 // Data Packet generation
 // -------------------------------------------------------------------------
 
-int usbPkt::genUsbPkt(usbModel::usb_signal_t buf[], const int pid, const uint8_t data[], const unsigned len)
+int usbPkt::usbPktGen(usbModel::usb_signal_t buf[], const int pid, const uint8_t data[], const unsigned len)
 {
     int idx = 0;
 
@@ -542,7 +542,7 @@ int usbPkt::genUsbPkt(usbModel::usb_signal_t buf[], const int pid, const uint8_t
 // -------------------------------------------------------------------------
 // -------------------------------------------------------------------------
 
-int usbPkt::decodePkt(const usbModel::usb_signal_t nrzibuf[], int& pid, uint32_t args[], uint8_t data[], int &databytes)
+int usbPkt::usbPktDecode(const usbModel::usb_signal_t nrzibuf[], int& pid, uint32_t args[], uint8_t data[], int &databytes)
 {
     databytes = 0;
 

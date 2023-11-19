@@ -23,7 +23,6 @@
 //
 //=============================================================
 
-
 #include <cstring>
 
 #include "usbCommon.h"
@@ -32,9 +31,53 @@
 
 class usbDevice : public usbPliApi, public usbPkt
 {
+private:
+
+    //-------------------------------------------------------------
+    // Local constant definitions
+    //-------------------------------------------------------------
+
+    static const int      PID_NO_CHECK             = usbModel::PID_INVALID;
+    static const int      DEFAULT_IDLE             = 36;
+
 public:
 
+    //-------------------------------------------------------------
+    // Constructor
+    //-------------------------------------------------------------
+
+    usbDevice (int nodeIn, std::string name = std::string(FMT_DEVICE "DEV " FMT_NORMAL)) :
+        usbPliApi(nodeIn, name),
+        usbPkt(name),
+        numendpoints(1),
+        remoteWakeup(usbModel::USB_REMOTE_WAKEUP_OFF),
+        selfPowered(usbModel::USB_NOT_SELF_POWERED),
+        timeSinceLastSof(0)
+    {
+        strdesc[0].bLength    = 6; // bLength + bDescriptorType bytes plus two wLANGID entries (2 bytes each)
+        strdesc[0].bString[0] = 0x0809; // English UK
+        strdesc[0].bString[1] = 0x0409; // English US
+
+        strdesc[1].bLength = 2;  // bLength + bDescriptorType bytes
+        strdesc[1].bLength += usbModel::fmtStrToUnicode(strdesc[1].bString, "github.com/wyvernSemi");
+
+        strdesc[2].bLength = 2;  // bLength + bDescriptorType bytes
+        strdesc[2].bLength += usbModel::fmtStrToUnicode(strdesc[2].bString, "usbModel");
+        reset();
+    };
+
+    //-------------------------------------------------------------
+    // User entry method to start the USB device model
+    //-------------------------------------------------------------
+
+    int usbDeviceRun(const int idle = DEFAULT_IDLE);
+
+private:
+
+    //-------------------------------------------------------------
     // Configuration structure
+    //-------------------------------------------------------------
+    
     class configAllDesc
     {
     public:
@@ -68,40 +111,13 @@ public:
         {
         }
     };
-    
-    static const int      PID_NO_CHECK             = usbModel::PID_INVALID;
-    static const int      DEFAULT_IDLE             = 36;
 
-    // Constructor
-    usbDevice (int nodeIn, std::string name = std::string(FMT_DEVICE "DEV " FMT_NORMAL)) :
-        usbPliApi(nodeIn, name),
-        usbPkt(name),
-        numendpoints(1),
-        remoteWakeup(usbModel::USB_REMOTE_WAKEUP_OFF),
-        selfPowered(usbModel::USB_NOT_SELF_POWERED),
-        timeSinceLastSof(0)
-    {
-        strdesc[0].bLength    = 6; // bLength + bDescriptorType bytes plus two wLANGID entries (2 bytes each)
-        strdesc[0].bString[0] = 0x0809; // English UK
-        strdesc[0].bString[1] = 0x0409; // English US
-        
-        strdesc[1].bLength = 2;  // bLength + bDescriptorType bytes
-        strdesc[1].bLength += usbModel::strToUnicode(strdesc[1].bString, "github.com/wyvernSemi");
-        
-        strdesc[2].bLength = 2;  // bLength + bDescriptorType bytes
-        strdesc[2].bLength += usbModel::strToUnicode(strdesc[2].bString, "usbModel");
-        reset();
-    };
-
-    // User entry method to start the USB device model
-    int runUsbDevice(const int idle = DEFAULT_IDLE);
-
-private:
-
+    //-------------------------------------------------------------
     // Reset method, called on detecting a reset state on the line
+    //-------------------------------------------------------------
     void reset()
     {
-        usbPliApi::reset();
+        usbPliApi::apiReset();
         devaddr   = usbModel::USB_NO_ASSIGNED_ADDR;
     }
 
@@ -110,38 +126,53 @@ private:
                                         const char* fmtstr,
                                         const int idle = DEFAULT_IDLE);
 
+    //-------------------------------------------------------------
     // Methods for sending packets back towards the host
-    void         sendPktToHost         (const int pid, const uint8_t  data[],   unsigned  datalen, const int idle = DEFAULT_IDLE);   // DATA
-    void         sendPktToHost         (const int pid, const uint8_t  addr,     uint8_t   endp,    const int idle = DEFAULT_IDLE);   // Token
-    void         sendPktToHost         (const int pid, const uint16_t framenum, const int idle = DEFAULT_IDLE);                      // SOF
-    void         sendPktToHost         (const int pid, const int      idle = DEFAULT_IDLE);                                          // Handshake
+    //-------------------------------------------------------------
 
+    int          sendPktToHost         (const int pid, const uint8_t  data[],   unsigned      datalen, const int idle = DEFAULT_IDLE);   // DATA
+    int          sendPktToHost         (const int pid, const uint8_t  addr,     const uint8_t endp,    const int idle = DEFAULT_IDLE);   // Token
+    int          sendPktToHost         (const int pid, const uint16_t framenum, const int     idle = DEFAULT_IDLE);                      // SOF
+    int          sendPktToHost         (const int pid, const int      idle = DEFAULT_IDLE);                                              // Handshake
+
+    //-------------------------------------------------------------
     // Method to wait for the receipt of a particular packet type
+    //-------------------------------------------------------------
+
     int          waitForExpectedPacket (const int pktType, int &pid, uint32_t args[], uint8_t data[], int databytes, bool ignorebadpkts = true);
 
+    //-------------------------------------------------------------
     // Methods for processing different packet types
+    //-------------------------------------------------------------
+
     int          processControl        (const uint32_t addr,   const uint32_t endp,   const int idle = DEFAULT_IDLE);
     int          processIn             (const uint32_t args[], const uint8_t  data[], const int databytes, const int idle = DEFAULT_IDLE);
     int          processOut            (const uint32_t args[],       uint8_t  data[], const int databytes, const int idle = DEFAULT_IDLE);
     int          processSOF            (const uint32_t args[], const int      idle = DEFAULT_IDLE);
 
+    //-------------------------------------------------------------
     // Method for handling device requests
+    //-------------------------------------------------------------
+
     int          handleDevReq          (const usbModel::setupRequest* sreq, const int idle = DEFAULT_IDLE);
 
+    //-------------------------------------------------------------
     // Internal device state
-    int          devaddr;
-    uint8_t      numendpoints;
-    uint8_t      remoteWakeup;
-    uint8_t      selfPowered;
+    //-------------------------------------------------------------
 
-    int          timeSinceLastSof;
+    int                    devaddr;
+    uint8_t                numendpoints;
+    uint8_t                remoteWakeup;
+    uint8_t                selfPowered;
+
+    int                    timeSinceLastSof;
 
     // Internal buffers for use by class methods
     uint8_t                rxdata [usbModel::MAXBUFSIZE];
     usbModel::usb_signal_t nrzi   [usbModel::MAXBUFSIZE];
     char                   sbuf   [usbModel::ERRBUFSIZE];
 
-    // DEvice's descriptors
+    // Device's descriptors
     usbModel::deviceDesc   devdesc;
     usbModel::stringDesc   strdesc[3];
     cfgAllBuf              cfgalldesc;

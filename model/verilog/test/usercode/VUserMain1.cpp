@@ -43,19 +43,27 @@ extern "C" void VUserMain1()
 
     usbDevice dev(node);
 
-    dev.waitOnNotReset();
+    // Wait for POR to go inactive
+    dev.apiWaitOnNotReset();
+    
+    // Delay before connecting
+    dev.apiSendIdle(500);
+    
+    // Connect the device to the line
+    dev.apiEnablePullup();
 
-    if (dev.runUsbDevice() != usbModel::USBOK)
+    // Run the device
+    if (dev.usbDeviceRun() != usbModel::USBOK)
     {
         fprintf(stderr, "***ERROR: VUserMain1: runUsbDevice returned bad status\n");
-        dev.getUsbErrMsg(sbuf);
+        dev.usbPktGetErrMsg(sbuf);
         fprintf(stderr, "%s\n", sbuf);
         
         // Halt the simulation
-        dev.haltSimulation();
+        dev.apiHaltSimulation();
     }
 
-    dev.SendIdle(0);
+    dev.apiSendIdle(0);
 
 }
 

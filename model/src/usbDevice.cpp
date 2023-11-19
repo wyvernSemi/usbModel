@@ -26,129 +26,25 @@
 #include "usbDevice.h"
 
 //-------------------------------------------------------------
-// waitForExpectedPacket()
+// runUsbDevice
 //
-// Method to wait for the receipt of a particular PID packet
-// type. A packet type of PID_INVALID will not check the type,
-// otherwise a STALL acknowledge is sent if a mismatch on
-// received PID. Will reset the device is reset detected on
-// USB line. Will ignore bad packets.
+// Public method to start the device being active on the line.
+// An optional idle argument (that has a default value) can be
+// given to set the delay between repsonses from the device.
+//
+// Returns usbModel::USBOK on success, or usbModel::USBERROR
+// on otherwise.
 //
 //-------------------------------------------------------------
 
-int usbDevice::waitForExpectedPacket(const int pktType, int &pid, uint32_t args[], uint8_t data[], int databytes, bool ignorebadpkts)
-{
-    int error = usbModel::USBOK;
-    int status;
-    int numbits;
-
-    USBDEVDEBUG ( "==> waitForExpectedPacket: waiting for a packet (0x%02x)\n", pktType);
-
-    while (true)
-    {
-        // Wait for a packet
-        if ((status = waitForPkt(nrzi)) == usbModel::USBRESET)
-        {
-            // If a reset seen, reset state and return
-            reset();
-            break;
-        }
-        else if (status == usbModel::USBSUSPEND)
-        {
-            break;
-        }
-
-        if (decodePkt(nrzi, pid, args, data, databytes) != usbModel::USBOK)
-        {
-            USBDEVDEBUG ( "==> waitForExpectedPacket: seen bad packet\n%s    ", errbuf);
-            for(int i = 0; i < databytes; i++)
-                USBDEVDEBUG("%02x ", data[i]);
-            USBDEVDEBUG("\n");
-
-            // Ignore any packets that have errors
-            if (ignorebadpkts)
-            {
-                continue;
-            }
-            else
-            {
-                return usbModel::USBERROR;
-            }
-        }
-        else
-        {
-            break;
-        }
-    }
-
-    // Check packet is as expected
-    if (pktType != PID_NO_CHECK && pid != pktType)
-    {
-        // Generate a STALL handshake for the error
-        sendPktToHost(usbModel::PID_HSHK_STALL);
-
-        USBERRMSG("waitForExpectedPacket: Received unexpected pid (got 0x%02x, expected 0x%02x)\n", pid, pktType);
-
-        error = usbModel::USBERROR;
-    }
-
-    return error;
-}
-
-//-------------------------------------------------------------
-//-------------------------------------------------------------
-
-// Data
-void usbDevice::sendPktToHost(const int pid, const uint8_t data[], unsigned datalen, const int idle)
-{
-    // Generate packet
-    int numbits = genUsbPkt(nrzi, pid, data, datalen);
-
-    // Send over the USB line
-    SendPacket(nrzi, numbits, idle);
-}
-
-// Token
-void usbDevice::sendPktToHost(const int pid, const uint8_t addr, uint8_t endp, const int idle)
-{
-    // Generate packet
-    int numbits = genUsbPkt(nrzi, pid, addr, endp);
-
-    // Send over the USB line
-    SendPacket(nrzi, numbits, idle);
-}
-
-// SOF
-void usbDevice::sendPktToHost(const int pid, const uint16_t framenum, const int idle)
-{
-    // Generate packet
-    int numbits = genUsbPkt(nrzi, pid, framenum);
-
-    // Send over the USB line
-    SendPacket(nrzi, numbits, idle);
-}
-
-// Handshake
-void usbDevice::sendPktToHost(const int pid, const int idle)
-{
-    // Generate packet
-    int numbits = genUsbPkt(nrzi, pid);
-
-    // Send over the USB line
-    SendPacket(nrzi, numbits, idle);
-}
-
-//-------------------------------------------------------------
-//-------------------------------------------------------------
-
-int usbDevice::runUsbDevice(const int idle)
+int usbDevice::usbDeviceRun(const int idle)
 {
     int                  pid;
     uint32_t             args[4];
     int                  databytes;
 
     // Wait for reset deassertion
-    waitOnNotReset();
+    apiWaitOnNotReset();
 
     // Loop forever
     while (true)
@@ -187,6 +83,212 @@ int usbDevice::runUsbDevice(const int idle)
 }
 
 //-------------------------------------------------------------
+// waitForExpectedPacket()
+//
+// Method to wait for the receipt of a particular PID packet
+// type. A packet type of PID_INVALID will not check the type,
+// otherwise a STALL acknowledge is sent if a mismatch on
+// received PID. Will reset the device is reset detected on
+// USB line. Will ignore bad packets by default, but can be
+// changed with ignorebadpkts set to false.
+//
+// The methods will return usbModel::USBOK if successful, else
+// usbModel::USBERROR on bad received packets (if not ignoring)
+// or unexpected received PIDs (if checking).
+//
+//-------------------------------------------------------------
+
+int usbDevice::waitForExpectedPacket(const int pktType, int &pid, uint32_t args[], uint8_t data[], int databytes, bool ignorebadpkts)
+{
+    int error = usbModel::USBOK;
+    int status;
+    int numbits;
+
+    USBDEVDEBUG ( "==> waitForExpectedPacket: waiting for a packet (0x%02x)\n", pktType);
+
+    while (true)
+    {
+        // Wait for a packet
+        if ((status = apiWaitForPkt(nrzi)) == usbModel::USBRESET)
+        {
+            // If a reset seen, reset state and return
+            reset();
+            break;
+        }
+        else if (status == usbModel::USBSUSPEND)
+        {
+            break;
+        }
+
+        if (usbPktDecode(nrzi, pid, args, data, databytes) != usbModel::USBOK)
+        {
+            USBDEVDEBUG ( "==> waitForExpectedPacket: seen bad packet\n%s    ", errbuf);
+            for(int i = 0; i < databytes; i++)
+                USBDEVDEBUG("%02x ", data[i]);
+            USBDEVDEBUG("\n");
+
+            // Ignore any packets that have errors
+            if (ignorebadpkts)
+            {
+                continue;
+            }
+            else
+            {
+                return usbModel::USBERROR;
+            }
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    // Check packet is as expected
+    if (pktType != PID_NO_CHECK && pid != pktType)
+    {
+        // Generate a STALL handshake for the error
+        sendPktToHost(usbModel::PID_HSHK_STALL);
+
+        USBERRMSG("waitForExpectedPacket: Received unexpected pid (got 0x%02x, expected 0x%02x)\n", pid, pktType);
+
+        error = usbModel::USBERROR;
+    }
+
+    return error;
+}
+
+//-------------------------------------------------------------
+// sendPktToHost
+//
+// A set of overloaded methods to send a packet towards the
+// host. The type of packet sent is dependent on the argument
+// types. All have a pid argument (which is checked as valid
+// for the type of packet to be sent).
+//
+// A DATAx packet is selected with a uint8_t* second argument
+// followed by an integer length.
+//
+// A TOKEN packet is sent with a uint8_t address and endpoint
+// index value arguments.
+//
+// An SOF packet is sent with a uint16_t framenum argument
+//
+// A HANDSHAKE packet is sent with no packet arguments
+//
+// All methods have an optional final integer idle argument
+// with a default value, which sets the delay before sending
+// the packet.
+//
+// The methods will return usbModel::USBOK if successful, else
+// usbModel::USBERROR on bad PIDs.
+//
+//-------------------------------------------------------------
+
+// Data
+int usbDevice::sendPktToHost(const int pid, const uint8_t data[], unsigned datalen, const int idle)
+{
+    int error = usbModel::USBOK;
+
+    // Check for valid PID
+    if (pid != usbModel::PID_DATA_0 && pid != usbModel::PID_DATA_1)
+    {
+        USBERRMSG("sendPktToHost(DATA): Invalid pid for packet type (0x%02x)", pid);
+        error = usbModel::USBERROR;
+    }
+    else
+    {
+        // Generate packet
+        int numbits = usbPktGen(nrzi, pid, data, datalen);
+
+        // Send over the USB line
+        apiSendPacket(nrzi, numbits, idle);
+    }
+
+    return error;
+}
+
+// Token
+int usbDevice::sendPktToHost(const int pid, const uint8_t addr, const uint8_t endp, const int idle)
+{
+    int error = usbModel::USBOK;
+
+    // Check for valid PID
+    if( pid != usbModel::PID_TOKEN_OUT && pid != usbModel::PID_TOKEN_IN && pid != usbModel::PID_TOKEN_SETUP)
+    {
+        USBERRMSG("sendPktToHost(TOKEN): Invalid pid for packet type (0x%02x)", pid);
+        error = usbModel::USBERROR;
+    }
+    else
+    {
+        // Generate packet
+        int numbits = usbPktGen(nrzi, pid, addr, endp);
+
+        // Send over the USB line
+        apiSendPacket(nrzi, numbits, idle);
+    }
+
+    return error;
+}
+
+// SOF
+int usbDevice::sendPktToHost(const int pid, const uint16_t framenum, const int idle)
+{
+    int error = usbModel::USBOK;
+
+    // Check for valid PID
+    if (pid != usbModel::PID_TOKEN_SOF)
+    {
+        USBERRMSG("sendPktToHost(SOF): Invalid pid for packet type (0x%02x)", pid);
+        error = usbModel::USBERROR;
+    }
+    else
+    {
+        // Generate packet
+        int numbits = usbPktGen(nrzi, pid, framenum);
+
+        // Send over the USB line
+        apiSendPacket(nrzi, numbits, idle);
+    }
+
+    return error;
+}
+
+// Handshake
+int usbDevice::sendPktToHost(const int pid, const int idle)
+{
+    int error = usbModel::USBOK;
+
+    // Check for valid PID
+    if (pid != usbModel::PID_HSHK_ACK && pid != usbModel::PID_HSHK_NAK && pid != usbModel::PID_HSHK_STALL)
+    {
+        USBERRMSG("sendPktToHost(HANDSHAKE): Invalid pid for packet type (0x%02x)", pid);
+        error = usbModel::USBERROR;
+    }
+    else
+    {
+        // Generate packet
+        int numbits = usbPktGen(nrzi, pid);
+
+        // Send over the USB line
+        apiSendPacket(nrzi, numbits, idle);
+    }
+
+    return error;
+}
+
+//-------------------------------------------------------------
+// processControl
+//
+// Method that processes a control transaction (a SETUP token
+// received). It loops waiting on receiving a valid DATA0
+// packet, which it then ACKS. It decodes the bmRequestType
+// fieled of the data and selects the appropriate handler
+// method to further process the transaction.
+//
+// The method will return usbModel::USBOK if successful, else
+// usbModel::USBERROR on bad addr/endp arguments, or bad
+// received packets.
+//
 //-------------------------------------------------------------
 
 int usbDevice::processControl(const uint32_t addr, const uint32_t endp, const int idle)

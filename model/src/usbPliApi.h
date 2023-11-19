@@ -38,6 +38,9 @@ extern "C"
 
 class usbPliApi
 {
+public:
+    static const int ONE_US          = 12;
+    static const int ONE_MS          = ONE_US * 1000;
 private:
 
     static const int IDLE_FOREVER = 0;
@@ -45,11 +48,11 @@ private:
     static const int MINIMUMIDLE  = 1;
 
 #ifndef USBTESTMODE
-    static const int MINRSTCOUNT     = 120000;  // 10ms for fullspeed device
-    static const int MINSUSPENDCOUNT = 36000;   // 3ms for fullspeed device
+    static const int MINRSTCOUNT     = ONE_MS * 10;  // 10ms for fullspeed device
+    static const int MINSUSPENDCOUNT = ONE_MS * 3;   // 3ms for fullspeed device
 #else
-    static const int MINRSTCOUNT     = 256;
-    static const int MINSUSPENDCOUNT = 1000;
+    static const int MINRSTCOUNT     = ONE_US * 25;
+    static const int MINSUSPENDCOUNT = ONE_US * 100;
 #endif
 
 public:
@@ -64,7 +67,7 @@ public:
     //-------------------------------------------------------------
     //-------------------------------------------------------------
 
-    unsigned getClkCount(int delta = DELTA_CYCLE)
+    unsigned apiGetClkCount(int delta = DELTA_CYCLE)
     {
         unsigned clkCount;
 
@@ -76,7 +79,7 @@ public:
     //-------------------------------------------------------------
     //-------------------------------------------------------------
 
-    unsigned readLineState(int delta = 0)
+    unsigned apiReadLineState(int delta = 0)
     {
         unsigned rawline;
 
@@ -88,35 +91,35 @@ public:
     //-------------------------------------------------------------
     //-------------------------------------------------------------
 
-    void SendIdle(const unsigned ticks = 1)
+    void apiSendIdle(const unsigned ticks = 1)
     {
         unsigned time;
         unsigned currtime;
 
         // Sample Current clock count
-        time = getClkCount();
+        time = apiGetClkCount();
 
         // Disable outputs
         VWrite(OUTEN, 0, DELTA_CYCLE, node);
 
         // Keep reading clock count for 'ticks' number of cycles
         do {
-            currtime = getClkCount(ADVANCE_TIME);
+            currtime = apiGetClkCount(ADVANCE_TIME);
         } while ((ticks == IDLE_FOREVER) || ((currtime-time) < ticks));
     }
 
     //-------------------------------------------------------------
     //-------------------------------------------------------------
 
-    void SendPacket(const usbModel::usb_signal_t nrzi[], const int bitlen, const int delay = 50)
+    void apiSendPacket(const usbModel::usb_signal_t nrzi[], const int bitlen, const int delay = 50)
     {
         if (delay >= MINIMUMIDLE)
         {
-            SendIdle(delay);
+            apiSendIdle(delay);
         }
         else
         {
-            SendIdle(MINIMUMIDLE);
+            apiSendIdle(MINIMUMIDLE);
         }
 
         // Enable outputs
@@ -149,7 +152,7 @@ public:
     }
 
     //-------------------------------------------------------------
-    // waitForPkt()
+    // apiWaitForPkt()
     //
     // Monitors the USB line for a new packet and saves the raw
     // NRZI data into the provided buffer, returning the bit count
@@ -159,7 +162,7 @@ public:
     //
     //-------------------------------------------------------------
 
-    int waitForPkt(usbModel::usb_signal_t nrzi[])
+    int apiWaitForPkt(usbModel::usb_signal_t nrzi[])
     {
         unsigned     line;
         bool         idle         = true;
@@ -174,7 +177,7 @@ public:
 
         do {
             // Get status on USB line
-            line = readLineState();
+            line = apiReadLineState();
 
             // If anything other than a J (when already idle) come out of suspend
             if (suspended && (line == usbModel::USB_K || line == usbModel::USB_SE0))
@@ -272,7 +275,7 @@ public:
     //-------------------------------------------------------------
     //-------------------------------------------------------------
 
-    void waitOnNotReset(void)
+    void apiWaitOnNotReset(void)
     {
         unsigned reset;
 
@@ -284,7 +287,7 @@ public:
     //-------------------------------------------------------------
     //-------------------------------------------------------------
 
-    void enablePullup(void)
+    void apiEnablePullup(void)
     {
         VWrite(PULLUP, 1, ADVANCE_TIME, node);
     }
@@ -292,7 +295,7 @@ public:
     //-------------------------------------------------------------
     //-------------------------------------------------------------
 
-    void disablePullup(void)
+    void apiDisablePullup(void)
     {
         VWrite(PULLUP, 0, ADVANCE_TIME, node);
     }
@@ -300,7 +303,7 @@ public:
     //-------------------------------------------------------------
     //-------------------------------------------------------------
 
-    void reset()
+    void apiReset()
     {
         suspended = false;
     }
@@ -308,7 +311,7 @@ public:
     //-------------------------------------------------------------
     //-------------------------------------------------------------
 
-    void haltSimulation()
+    void apiHaltSimulation()
     {
         VWrite(UVH_FINISH, 0, 0, node);
     }

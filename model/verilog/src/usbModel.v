@@ -94,7 +94,7 @@ begin
   oen                          = 1'b0;
   dp                           = 1'b1;
   dm                           = 1'b0;
-  nopullup                     = 1'b0;
+  nopullup                     = DEVICE ? 1'b1 : 1'b0; // Default disabled for device, enabled for host
   updateresp                   = 1'b1;
   clkcount                     = 0;
 end

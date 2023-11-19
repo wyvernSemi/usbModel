@@ -27,7 +27,34 @@
 
 // -------------------------------------------------------------------------
 // -------------------------------------------------------------------------
-int usbHost::getDeviceStatus (const uint8_t addr, const uint8_t endp, uint16_t &status, const unsigned idle)
+
+int usbHost::usbHostWaitForConnection (const unsigned polldelay, const unsigned timeout)
+{
+    int      linestate;
+    unsigned clkcycles  = 0;
+
+    while ((linestate = apiReadLineState()) == usbModel::USB_SE0 && clkcycles < timeout)
+    {
+        apiSendIdle(polldelay);
+        clkcycles += polldelay;
+    }
+
+    if (clkcycles >= timeout)
+    {
+        USBERRMSG("waitForConnection: timed out waiting for a device to be connected");
+        linestate = usbModel::USBERROR;
+    }
+    else
+    {
+        USBDISPPKT("  %s USB DEVICE CONNECTED (at cycle %d)\n", name.c_str(), apiGetClkCount());
+    }
+
+    return linestate;
+}
+
+// -------------------------------------------------------------------------
+// -------------------------------------------------------------------------
+int usbHost::usbHostGetDeviceStatus (const uint8_t addr, const uint8_t endp, uint16_t &status, const unsigned idle)
 {
     int error = usbModel::USBOK;
     int databytes;
@@ -59,8 +86,8 @@ int usbHost::getDeviceStatus (const uint8_t addr, const uint8_t endp, uint16_t &
 // -------------------------------------------------------------------------
 // -------------------------------------------------------------------------
 
-int usbHost::getStrDescriptor (const uint8_t  addr,     const uint8_t  endp,
-                               const uint8_t  strindex,       uint8_t  data[], 
+int usbHost::usbHostGetStrDescriptor (const uint8_t  addr,     const uint8_t  endp,
+                               const uint8_t  strindex,       uint8_t  data[],
                                const uint16_t reqlen,   uint16_t       &rxlen,
                                const bool     chklen,
                                const uint16_t langid,
@@ -107,7 +134,7 @@ int usbHost::getStrDescriptor (const uint8_t  addr,     const uint8_t  endp,
         {
             if (strindex)
             {
-                usbModel::UnicodeToStr((char*)data, (uint16_t*)&rxdata[2], (receivedbytes-2)/2);
+                usbModel::fmtUnicodeToStr((char*)data, (uint16_t*)&rxdata[2], (receivedbytes-2)/2);
                 rxlen = (receivedbytes - 2)/2;
             }
             else
@@ -124,7 +151,7 @@ int usbHost::getStrDescriptor (const uint8_t  addr,     const uint8_t  endp,
 // -------------------------------------------------------------------------
 // -------------------------------------------------------------------------
 
-int usbHost::getDeviceDescriptor (const uint8_t  addr,   const uint8_t  endp,
+int usbHost::usbHostGetDeviceDescriptor (const uint8_t  addr,   const uint8_t  endp,
                                         uint8_t  data[], const uint16_t reqlen, uint16_t &rxlen,
                                   const bool     chklen, const unsigned idle)
 {
@@ -178,7 +205,7 @@ int usbHost::getDeviceDescriptor (const uint8_t  addr,   const uint8_t  endp,
 // -------------------------------------------------------------------------
 // -------------------------------------------------------------------------
 
-int usbHost::getConfigDescriptor  (const  uint8_t  addr,   const uint8_t  endp,
+int usbHost::usbHostGetConfigDescriptor  (const  uint8_t  addr,   const uint8_t  endp,
                                           uint8_t  data[], const uint16_t reqlen, uint16_t &rxlen,
                                     const bool     chklen, const unsigned idle)
 {
@@ -229,12 +256,25 @@ int usbHost::getConfigDescriptor  (const  uint8_t  addr,   const uint8_t  endp,
 
 // -------------------------------------------------------------------------
 // -------------------------------------------------------------------------
+int  usbHost::usbHostSetAddress (const uint8_t addr, const uint8_t endp, const uint16_t wValue, const unsigned idle)
+{
+    return sendDeviceRequest(addr, endp,
+                             usbModel::USB_DEV_REQTYPE_SET,
+                             usbModel::USB_REQ_SET_ADDRESS,
+                             wValue,                                  // wValue
+                             0,                                       // wIndex
+                             0,                                       // wLength
+                             idle);
+}
+
+// -------------------------------------------------------------------------
+// -------------------------------------------------------------------------
 
 void usbHost::sendTokenToDevice (const int pid, const uint8_t addr, const uint8_t endp, const unsigned idle)
 {
-    int numbits = genUsbPkt(nrzi, pid, addr, endp);
+    int numbits = usbPktGen(nrzi, pid, addr, endp);
 
-    SendPacket(nrzi, numbits, idle);
+    apiSendPacket(nrzi, numbits, idle);
 }
 
 // -------------------------------------------------------------------------
@@ -253,9 +293,9 @@ int usbHost::sendDataToDevice (const int datatype, const uint8_t data[], const i
     }
     else
     {
-        int numbits = genUsbPkt(nrzi, datatype, data, len);
+        int numbits = usbPktGen(nrzi, datatype, data, len);
 
-        SendPacket(nrzi, numbits, idle);
+        apiSendPacket(nrzi, numbits, idle);
     }
 
     return error;
@@ -271,12 +311,12 @@ int usbHost::getDataFromDevice(const int expPID, uint8_t data[], int &databytes,
     uint32_t             args[4];
 
     // Wait for data
-    waitForPkt(nrzi);
+    apiWaitForPkt(nrzi);
 
-    if (decodePkt(nrzi, pid, args, data, databytes) != usbModel::USBOK)
+    if (usbPktDecode(nrzi, pid, args, data, databytes) != usbModel::USBOK)
     {
         USBERRMSG ("***ERROR: getDataFromDevice: received bad packet waiting for data\n");
-        getUsbErrMsg(sbuf);
+        usbPktGetErrMsg(sbuf);
         USBERRMSG ("%s\n", sbuf);
         error = usbModel::USBERROR;
     }
@@ -287,8 +327,8 @@ int usbHost::getDataFromDevice(const int expPID, uint8_t data[], int &databytes,
             USBDEVDEBUG("==> getDataFromDevice: Sending an ACK\n");
 
             // Send ACK
-            int numbits = genUsbPkt(nrzi, usbModel::PID_HSHK_ACK);
-            SendPacket(nrzi, numbits, idle);
+            int numbits = usbPktGen(nrzi, usbModel::PID_HSHK_ACK);
+            apiSendPacket(nrzi, numbits, idle);
         }
         else
         {
@@ -331,12 +371,12 @@ int usbHost::sendDeviceRequest(const uint8_t  addr,    const uint8_t  endp,
     do
     {
         // Wait for ACK
-        waitForPkt(nrzi);
+        apiWaitForPkt(nrzi);
 
-        if (decodePkt(nrzi, pid, args, rxdata, databytes) != usbModel::USBOK)
+        if (usbPktDecode(nrzi, pid, args, rxdata, databytes) != usbModel::USBOK)
         {
             USBERRMSG("***ERROR: sendDeviceRequest: received bad packet waiting for ACK\n");
-            getUsbErrMsg(sbuf);
+            usbPktGetErrMsg(sbuf);
             USBERRMSG("%s\n", sbuf);
             error = usbModel::USBERROR;
             break;
@@ -406,19 +446,6 @@ int usbHost::sendGetCfgDescRequest(const uint8_t addr, const uint8_t endp, const
                              usbModel::CONFIG_DESCRIPTOR_TYPE << 8,    // wValue
                              0,                                        // wIndex
                              length,                                   // wLength
-                             idle);
-}
-
-// -------------------------------------------------------------------------
-// -------------------------------------------------------------------------
-int  usbHost::setAddress (const uint8_t addr, const uint8_t endp, const uint16_t wValue, const unsigned idle)
-{
-    return sendDeviceRequest(addr, endp,
-                             usbModel::USB_DEV_REQTYPE_SET,
-                             usbModel::USB_REQ_SET_ADDRESS,
-                             wValue,                                  // wValue
-                             0,                                       // wIndex
-                             0,                                       // wLength
                              idle);
 }
 

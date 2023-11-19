@@ -131,8 +131,8 @@ const char* fmtFuncDescSubtype        (const uint8_t subtype);
 const char* fmtDecriptorType          (const uint8_t desc);
 const char* fmtLineState              (const unsigned linestate);
 
-int         strToUnicode              (uint16_t* dst, const char*     src, const int maxstrsize = MAXSTRDESCSTRING);
-int         UnicodeToStr              (char*     dst, const uint16_t* src, const int length, const int maxstrsize = MAXSTRDESCSTRING);
+int         fmtStrToUnicode           (uint16_t* dst, const char*     src, const int maxstrsize = MAXSTRDESCSTRING);
+int         fmtUnicodeToStr           (char*     dst, const uint16_t* src, const int length, const int maxstrsize = MAXSTRDESCSTRING);
 }
 
 #endif
