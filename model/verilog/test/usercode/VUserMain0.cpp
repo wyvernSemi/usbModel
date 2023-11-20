@@ -44,6 +44,7 @@ extern "C" void VUserMain0()
 {
     int                  linestate;
     uint16_t             dev_status;
+    uint8_t              dev_cfg;
     uint8_t              addr;
     uint8_t              endp;
     uint16_t             rxlen;
@@ -132,6 +133,27 @@ extern "C" void VUserMain0()
         host.usbHostGetDeviceStatus(addr, endp, dev_status);
 
         fprintf(stderr, "\nVUserMain0: received device status of 0x%04x\n\n", dev_status);
+        
+        // Get the device configurations status
+        host.usbHostGetDeviceConfig(addr, endp, dev_cfg);
+        
+        fprintf(stderr, "\n\nVUserMain0: received device configuration of 0x%02x (%s)\n\n", dev_cfg, dev_cfg ? "enabled" : "disabled");
+        
+        // Set the device configuration
+        host.usbHostSetDeviceConfig(addr, endp, 1);
+        
+        fprintf(stderr, "\nVUserMain0: set the device configuration for index 1\n\n");
+        
+        // Get the device configurations status
+        host.usbHostGetDeviceConfig(addr, endp, dev_cfg);
+        
+        fprintf(stderr, "\n\nVUserMain0: received device configuration of 0x%02x (%s)\n\n", dev_cfg, dev_cfg ? "enabled" : "disabled");
+        
+        // Clear a device feature
+        host.usbHostClearDeviceFeature(addr, endp, 0);
+        
+        // Set a device feature
+        host.usbHostSetDeviceFeature(addr, endp, 1);
     }
 
     // Wait a bit before halting to let the device receive the ACK

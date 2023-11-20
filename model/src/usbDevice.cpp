@@ -300,7 +300,7 @@ int usbDevice::processControl(const uint32_t addr, const uint32_t endp, const in
     USBDEVDEBUG ( "==> processControl (addr = 0x%02x, endp = 0x%02x)\n", addr, endp);
 
     // Check Address/endp is 0/0 or a previously set address and a valid endpoint
-    if (!((addr == 0 && endp == 0) || (addr == devaddr && endp <= numendpoints)))
+    if (!((addr == 0 && endp == 0) || (addr == devaddr && endp <= TOTALNUMEPS)))
     {
         // Generate a STALL handshake if an error
         sendPktToHost(usbModel::PID_HSHK_STALL, idle);
@@ -362,6 +362,7 @@ int usbDevice::handleDevReq(const usbModel::setupRequest* sreq, const int idle)
     int                  databytes;
     int                  datasize;
     int                  index;
+    bool                 cfgstate;
 
     uint8_t              desctype;
     uint8_t              descidx;
@@ -376,31 +377,35 @@ int usbDevice::handleDevReq(const usbModel::setupRequest* sreq, const int idle)
 
         // Construct status data
         uint8_t buf[2];
-        buf[0]   = remoteWakeup | selfPowered;
+        buf[0]   = REMOTE_WAKEUP_STATE | SELF_POWERED_STATE;
         buf[1]   = 0;
         datasize = 2;
 
         // Construct a formatted output string
         snprintf(sbuf, usbModel::ERRBUFSIZE,"  %s RX DEV REQ: GET STATUS\n    " FMT_DATA_GREY "remWkup=%d selfPwd=%d" FMT_NORMAL "\n",
                  name.c_str(),
-                 remoteWakeup ? 1 : 0,
-                 selfPowered  ? 1 : 0);
+                 REMOTE_WAKEUP_STATE ? 1 : 0,
+                 SELF_POWERED_STATE  ? 1 : 0);
 
         // Send the response to the GET_STATUS command
         return sendGetResp (sreq, buf, datasize, sbuf);
         break;
 
     case usbModel::USB_REQ_CLEAR_FEATURE:
+        // No remote wakeup or test mode support, so ignore
+        USBDISPPKT("  %s RX DEV REQ: CLEAR FEATURE 0x%04x\n", name.c_str(), sreq->wValue);
         break;
 
     case usbModel::USB_REQ_SET_FEATURE:
+        // No remote wakeup or test mode support, so ignore
+        USBDISPPKT("  %s RX DEV REQ: SET FEATURE 0x%04x\n", name.c_str(), sreq->wValue);
         break;
 
     case usbModel::USB_REQ_SET_ADDRESS:
         // Extract address
         devaddr = sreq->wValue;
 
-        USBDEVDEBUG("==> Received SET_ADDRESS 0x%02x\n", sreq->wValue);
+        USBDISPPKT("  %s RX DEV REQ: SET ADDRESS 0x%02x\n", name.c_str(), devaddr);
         break;
 
     case usbModel::USB_REQ_GET_DESCRIPTOR:
@@ -467,11 +472,37 @@ int usbDevice::handleDevReq(const usbModel::setupRequest* sreq, const int idle)
         }
 
     case usbModel::USB_REQ_SET_DESCRIPTOR:
+        // Ignoring SET_DESCRIPTOR requests, so do nothing
+
+        USBDISPPKT("  %s RX DEV REQ: SET DESCRIPTOR\n", name.c_str());
         break;
+
+    // Return deviceConfigured state
     case usbModel::USB_REQ_GET_CONFIG:
+
+        datasize = 1;
+
+        // Only one configuration (index at 1), so return false fo all other indexes
+        cfgstate = ((sreq->wValue & 0xff) == 1) ? deviceConfigured : false;
+
+        // Construct a formatted output string
+        snprintf(sbuf, usbModel::ERRBUFSIZE,"  %s RX DEV REQ: GET DEVICE CONFIGURATION (index=%d)\n", name.c_str(), (sreq->wValue & 0xff));
+
+        return sendGetResp(sreq, (uint8_t*)&cfgstate, datasize, sbuf);
+
         break;
+
     case usbModel::USB_REQ_SET_CONFIG:
+
+        // Set the configuration if index is 1, clear if index is 0 and leave unchanged for all other indexes
+        deviceConfigured = ((sreq->wValue & 0xff) == 1) ? true  :
+                           ((sreq->wValue & 0xff) == 0) ? false :
+                           deviceConfigured;
+
+        USBDISPPKT("  %s RX DEV REQ: SET CONFIGURATION (index %d)\n", name.c_str(), sreq->wValue & 0xff);
+
        break;
+
     default:
         // Generate a STALL handshake if an unknown bRequest
         sendPktToHost(usbModel::PID_HSHK_STALL, idle);

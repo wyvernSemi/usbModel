@@ -39,6 +39,13 @@ private:
 
     static const int      PID_NO_CHECK             = usbModel::PID_INVALID;
     static const int      DEFAULT_IDLE             = 36;
+    
+    static const int      NUMIF0EPS                = 1;
+    static const int      NUMIF1EPS                = 2;
+    static const int      TOTALNUMEPS              = NUMIF0EPS + NUMIF1EPS;
+    
+    static const uint8_t  REMOTE_WAKEUP_STATE      = usbModel::USB_REMOTE_WAKEUP_OFF;
+    static const uint8_t  SELF_POWERED_STATE       = usbModel::USB_NOT_SELF_POWERED;
 
 public:
 
@@ -49,10 +56,9 @@ public:
     usbDevice (int nodeIn, std::string name = std::string(FMT_DEVICE "DEV " FMT_NORMAL)) :
         usbPliApi(nodeIn, name),
         usbPkt(name),
-        numendpoints(1),
-        remoteWakeup(usbModel::USB_REMOTE_WAKEUP_OFF),
-        selfPowered(usbModel::USB_NOT_SELF_POWERED),
-        timeSinceLastSof(0)
+        deviceConfigured(false),
+        framenumber(0),
+        ephalted{{false}}
     {
         strdesc[0].bLength    = 6; // bLength + bDescriptorType bytes plus two wLANGID entries (2 bytes each)
         strdesc[0].bString[0] = 0x0809; // English UK
@@ -93,9 +99,9 @@ private:
         struct usbModel::endpointDesc     epdesc1_1;
 
         configAllDesc() : cfgdesc0(sizeof(configAllDesc)),
-                          ifdesc0(0, 1),
+                          ifdesc0(0, NUMIF0EPS),
                           epdesc0_0(0x88, 0x03, 0xff),
-                          ifdesc1(1, 2),
+                          ifdesc1(1, NUMIF1EPS),
                           epdesc1_0(0x81, 02),
                           epdesc1_1(0x01, 02)
         {
@@ -160,12 +166,11 @@ private:
     // Internal device state
     //-------------------------------------------------------------
 
+    // Assigned device address
     int                    devaddr;
-    uint8_t                numendpoints;
-    uint8_t                remoteWakeup;
-    uint8_t                selfPowered;
-
-    int                    timeSinceLastSof;
+    bool                   deviceConfigured;
+    uint16_t               framenumber;
+    bool                   ephalted[TOTALNUMEPS];
 
     // Internal buffers for use by class methods
     uint8_t                rxdata [usbModel::MAXBUFSIZE];

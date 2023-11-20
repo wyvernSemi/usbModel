@@ -53,32 +53,49 @@ public:
     // -------------------------------------------------------------------------
 public:
 
-    int     usbHostWaitForConnection   (const unsigned polldelay = 10*ONE_US, const unsigned timeout = 3*ONE_MS);
+    int  usbHostWaitForConnection     (const unsigned polldelay = 10*ONE_US, const unsigned timeout = 3*ONE_MS);
 
-    int     usbHostGetDeviceStatus     (const uint8_t  addr,      const uint8_t  endp,
-                                              uint16_t &status,
-                                        const unsigned idle = DEFAULTIDLEDELAY);
+    int  usbHostGetDeviceStatus       (const uint8_t  addr,      const uint8_t  endp,
+                                             uint16_t &status,
+                                       const unsigned idle = DEFAULTIDLEDELAY);
 
-    int     usbHostGetDeviceDescriptor (const uint8_t  addr,      const uint8_t  endp,
-                                           uint8_t data[],     const uint16_t reqlength,
-                                           uint16_t &rxlen,    const bool     chklen = true, const
-                                           unsigned idle = DEFAULTIDLEDELAY);
+    int  usbHostGetDeviceDescriptor   (const uint8_t  addr,      const uint8_t  endp,
+                                             uint8_t data[],     const uint16_t reqlength,
+                                             uint16_t &rxlen,    const bool     chklen = true, const
+                                             unsigned idle = DEFAULTIDLEDELAY);
 
-    int     usbHostGetConfigDescriptor (const uint8_t  addr,      const uint8_t  endp,
-                                              uint8_t  data[],    const uint16_t reqlen,
-                                              uint16_t &rxlen,    const bool     chklen = true,
-                                        const unsigned idle = DEFAULTIDLEDELAY);
-                                       
-    int     usbHostGetStrDescriptor    (const uint8_t  addr,      const uint8_t  endp,
-                                        const uint8_t  strindex,  uint8_t        data[],
-                                        const uint16_t reqlen,    uint16_t       &rxlen,
-                                        const bool     chklen = true,
-                                        const uint16_t langid = 0x0809,
-                                        const unsigned idle   = DEFAULTIDLEDELAY);
-                                       
-    int     usbHostSetAddress          (const uint8_t  addr,      const uint8_t  endp,
-                                        const uint16_t wValue,
-                                        const unsigned idle = DEFAULTIDLEDELAY);
+    int  usbHostGetDeviceConfig       (const uint8_t  addr,      const uint8_t  endp,
+                                             uint8_t  &cfgstate,
+                                       const uint8_t  index = 1,
+                                       const unsigned idle = DEFAULTIDLEDELAY);
+
+    int  usbHostSetDeviceConfig       (const uint8_t  addr,      const uint8_t  endp,
+                                       const uint8_t  index,
+                                       const unsigned idle = DEFAULTIDLEDELAY);
+
+    int  usbHostGetConfigDescriptor   (const uint8_t  addr,      const uint8_t  endp,
+                                             uint8_t  data[],    const uint16_t reqlen,
+                                             uint16_t &rxlen,    const bool     chklen = true,
+                                       const unsigned idle = DEFAULTIDLEDELAY);
+
+    int  usbHostGetStrDescriptor      (const uint8_t  addr,      const uint8_t  endp,
+                                       const uint8_t  strindex,  uint8_t        data[],
+                                       const uint16_t reqlen,    uint16_t       &rxlen,
+                                       const bool     chklen = true,
+                                       const uint16_t langid = 0x0809,
+                                       const unsigned idle   = DEFAULTIDLEDELAY);
+
+    int  usbHostSetAddress            (const uint8_t  addr,      const uint8_t  endp,
+                                       const uint16_t wValue,
+                                       const unsigned idle = DEFAULTIDLEDELAY);
+
+    int  usbHostClearDeviceFeature    (const uint8_t  addr, const uint8_t endp,
+                                       const uint16_t  feature,
+                                       const unsigned idle = DEFAULTIDLEDELAY);
+
+    int  usbHostSetDeviceFeature      (const uint8_t  addr, const uint8_t endp,
+                                       const uint16_t  feature,
+                                       const unsigned idle = DEFAULTIDLEDELAY);
 
     // -------------------------------------------------------------------------
     // Private methods
@@ -101,6 +118,10 @@ private:
                                 const unsigned idle  = DEFAULTIDLEDELAY);
 
     int  sendGetStatusRequest  (const uint8_t  addr,      const uint8_t  endp,
+                                const unsigned idle = DEFAULTIDLEDELAY);
+
+    int  sendGetDevCfgRequest  (const uint8_t  addr, const uint8_t endp,
+                                const uint8_t  index,
                                 const unsigned idle = DEFAULTIDLEDELAY);
 
     int  sendGetDevDescRequest (const uint8_t  addr,      const uint8_t  endp,

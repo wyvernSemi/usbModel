@@ -225,7 +225,7 @@ namespace usbModel
             bConfigurationValue = 0x01;                                // Index for this configuration
             iConfiguration      = 0x00;                                // Index to configuration description string (none)
             bmAttributes        = 0x80;                                // Powered from bus
-            bMaxPower           = 0x64;                                // Maximum power consumption mA (100mA)
+            bMaxPower           = 0x32;                                // Maximum power consumption in units of 2mA (100mA)
         }
     };
 

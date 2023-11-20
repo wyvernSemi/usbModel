@@ -85,6 +85,37 @@ int usbHost::usbHostGetDeviceStatus (const uint8_t addr, const uint8_t endp, uin
 
 // -------------------------------------------------------------------------
 // -------------------------------------------------------------------------
+int usbHost::usbHostGetDeviceConfig (const uint8_t addr, const uint8_t endp, uint8_t &cfgstate, const uint8_t index, const unsigned idle)
+{
+    int error = usbModel::USBOK;
+    int databytes;
+
+    // Send out the request
+    if (sendGetDevCfgRequest(addr, endp, index, idle) != usbModel::USBOK)
+    {
+        error = usbModel::USBERROR;
+    }
+    else
+    {
+        // Send IN
+        sendTokenToDevice(usbModel::PID_TOKEN_IN, addr, endp, idle);
+
+        // Receive requested data
+        if (getDataFromDevice(usbModel::PID_DATA_1, rxdata, databytes, idle) != usbModel::USBOK)
+        {
+            error = usbModel::USBERROR;
+        }
+        else
+        {
+            cfgstate = rxdata[0];
+        }
+    }
+
+    return error;
+}
+
+// -------------------------------------------------------------------------
+// -------------------------------------------------------------------------
 
 int usbHost::usbHostGetStrDescriptor (const uint8_t  addr,     const uint8_t  endp,
                                const uint8_t  strindex,       uint8_t  data[],
@@ -237,6 +268,7 @@ int usbHost::usbHostGetConfigDescriptor  (const  uint8_t  addr,   const uint8_t 
             }
 
             pid = (pid == usbModel::PID_DATA_1) ? usbModel::PID_DATA_0 : usbModel::PID_DATA_1;
+
         } while ((receivedbytes < reqlen && receivedbytes < ((usbModel::configDesc*)rxdata)->wTotalLength));
 
         if (chklen && receivedbytes != reqlen)
@@ -262,6 +294,52 @@ int  usbHost::usbHostSetAddress (const uint8_t addr, const uint8_t endp, const u
                              usbModel::USB_DEV_REQTYPE_SET,
                              usbModel::USB_REQ_SET_ADDRESS,
                              wValue,                                  // wValue
+                             0,                                       // wIndex
+                             0,                                       // wLength
+                             idle);
+}
+
+// -------------------------------------------------------------------------
+// -------------------------------------------------------------------------
+
+int usbHost::usbHostSetDeviceConfig (const uint8_t  addr, const uint8_t  endp, const uint8_t index, const unsigned idle)
+{
+    return sendDeviceRequest(addr, endp,
+                             usbModel::USB_DEV_REQTYPE_SET,
+                             usbModel::USB_REQ_SET_CONFIG,
+                             (uint16_t)index,                         // wValue
+                             0,                                       // wIndex
+                             0,                                       // wLength
+                             idle);
+}
+
+// -------------------------------------------------------------------------
+// -------------------------------------------------------------------------
+
+int usbHost::usbHostClearDeviceFeature (const uint8_t  addr, const uint8_t endp,
+                                        const uint16_t feature,
+                                        const unsigned idle)
+{
+    return sendDeviceRequest(addr, endp,
+                             usbModel::USB_DEV_REQTYPE_SET,
+                             usbModel::USB_REQ_CLEAR_FEATURE,
+                             feature,                                 // wValue
+                             0,                                       // wIndex
+                             0,                                       // wLength
+                             idle);
+}
+
+// -------------------------------------------------------------------------
+// -------------------------------------------------------------------------
+
+int usbHost::usbHostSetDeviceFeature (const uint8_t  addr, const uint8_t endp,
+                                      const uint16_t feature,
+                                      const unsigned idle)
+{
+    return sendDeviceRequest(addr, endp,
+                             usbModel::USB_DEV_REQTYPE_SET,
+                             usbModel::USB_REQ_SET_FEATURE,
+                             feature,                                 // wValue
                              0,                                       // wIndex
                              0,                                       // wLength
                              idle);
@@ -404,6 +482,20 @@ int usbHost::sendGetStatusRequest(const uint8_t addr, const uint8_t endp, const 
                              0,                                        // wValue
                              0,                                        // wIndex
                              2,                                        // wLength
+                             idle);
+}
+
+// -------------------------------------------------------------------------
+// -------------------------------------------------------------------------
+
+int usbHost::sendGetDevCfgRequest(const uint8_t addr, const uint8_t endp, const uint8_t index, const unsigned idle)
+{
+    return sendDeviceRequest(addr, endp,
+                             usbModel::USB_DEV_REQTYPE_GET,
+                             usbModel::USB_REQ_GET_CONFIG,
+                             (uint16_t)index,                          // wValue
+                             0,                                        // wIndex
+                             1,                                        // wLength
                              idle);
 }
 
