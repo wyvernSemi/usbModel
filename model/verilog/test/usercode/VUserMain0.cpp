@@ -43,8 +43,9 @@ static char    scratchbuf [usbModel::ERRBUFSIZE];
 extern "C" void VUserMain0()
 {
     int                  linestate;
-    uint16_t             dev_status;
+    uint16_t             status;
     uint8_t              dev_cfg;
+    uint8_t              altif;
     uint8_t              addr;
     uint8_t              endp;
     uint16_t             rxlen;
@@ -64,12 +65,12 @@ extern "C" void VUserMain0()
         if (linestate == usbModel::USBERROR)
         {
             host.usbPktGetErrMsg(scratchbuf);
-            fprintf(stderr, "\nVUserMain0: ***ERROR: %s\n", scratchbuf);
+            USBDISPPKT ("\nVUserMain0: ***ERROR: %s\n", scratchbuf);
         }
         // If a valid linestate, but not J then not a full speed connection
         else
         {
-            fprintf(stderr, "\nVUserMain0: ***ERROR: USB line state (%s) does not indicate a full speed device connected\n",
+            USBDISPPKT ("\nVUserMain0: ***ERROR: USB line state (%s) does not indicate a full speed device connected\n",
                 usbModel::fmtLineState(linestate));
         }
     }
@@ -78,16 +79,16 @@ extern "C" void VUserMain0()
     {
         // Get the device descriptor
         host.usbHostGetDeviceDescriptor (usbModel::CONTROL_ADDR, usbModel::CONTROL_EP, rxdata, 0x00FF, rxlen, false);
-        
+
         usbModel::fmtDevDescriptor(scratchbuf, rxdata);
-        fprintf(stderr, "\nVUserMain0: received device descriptor\n\n%s", scratchbuf);
+        USBDISPPKT ("\nVUserMain0: received device descriptor\n\n%s", scratchbuf);
 
         // Set the device address to 1
         addr = 1;
         endp = 0;
         host.usbHostSetAddress(usbModel::CONTROL_ADDR, usbModel::CONTROL_EP, addr);
 
-        fprintf(stderr, "\nVUserMain0: sent SET_ADDR (0x%04x)\n\n", addr);
+        USBDISPPKT ("\nVUserMain0: sent SET_ADDR (0x%04x)\n\n", addr);
 
         // Get the configuration descriptor. Device will want to return all descriptors under
         // the config descriptor, so just ask for the number of bytes required for the
@@ -95,7 +96,7 @@ extern "C" void VUserMain0()
         host.usbHostGetConfigDescriptor(addr, endp, rxdata, sizeof(usbModel::configDesc), rxlen, false);
 
         usbModel::fmtCfgDescriptor(scratchbuf, rxdata);
-        fprintf(stderr, "\nVUserMain0: received config descriptor\n\n%s\n", scratchbuf);
+        USBDISPPKT ("\nVUserMain0: received config descriptor\n\n%s\n", scratchbuf);
 
         // Extract the total length of the combined descriptors
         usbModel::configDesc *pCfgDesc = (usbModel::configDesc *)rxdata;
@@ -105,55 +106,90 @@ extern "C" void VUserMain0()
         host.usbHostGetConfigDescriptor(addr, endp, rxdata, wTotalLength, rxlen, false);
 
         usbModel::fmtCfgAllDescriptor(scratchbuf, rxdata);
-        fprintf(stderr, "\nVUserMain0: received config descriptor\n\n%s", scratchbuf);
+        USBDISPPKT ("\nVUserMain0: received config descriptor\n\n%s", scratchbuf);
 
         // Get string descriptor 0
         host.usbHostGetStrDescriptor(addr, endp, 0, rxdata, 0xff, rxlen, false);
 
-        fprintf(stderr, "\nVUserMain0: received string descriptor index 0\n");
+        USBDISPPKT ("\nVUserMain0: received string descriptor index 0\n");
         for (int idx = 0; idx < (rxlen-2)/2; idx++)
         {
-            fprintf(stderr, "  wLANGID[%d] = 0x%04x\n", idx, ((uint16_t*)&rxdata[2])[idx]);
+            USBDISPPKT ("  wLANGID[%d] = 0x%04x\n", idx, ((uint16_t*)&rxdata[2])[idx]);
         }
-        fprintf(stderr, "\n");
+        USBDISPPKT ("\n");
 
         // Get string descriptor 1
         host.usbHostGetStrDescriptor(addr, endp, 1, rxdata, 0xff, rxlen, false);
 
-        fprintf(stderr, "\nVUserMain0: received string descriptor index 1\n");
-        fprintf(stderr, "  \"%s\"\n\n", &rxdata);
+        USBDISPPKT ("\nVUserMain0: received string descriptor index 1\n");
+        USBDISPPKT ("  \"%s\"\n\n", &rxdata);
 
         // Get string descriptor 2
         host.usbHostGetStrDescriptor(addr, endp, 2, rxdata, 0xff, rxlen, false);
 
-        fprintf(stderr, "\nVUserMain0: received string descriptor index 2\n");
-        fprintf(stderr, "  \"%s\"\n\n", &rxdata);
+        USBDISPPKT ("\nVUserMain0: received string descriptor index 2\n");
+        USBDISPPKT ("  \"%s\"\n\n", &rxdata);
 
         // Get the device status
-        host.usbHostGetDeviceStatus(addr, endp, dev_status);
+        host.usbHostGetDeviceStatus(addr, endp, status);
 
-        fprintf(stderr, "\nVUserMain0: received device status of 0x%04x\n\n", dev_status);
-        
+        USBDISPPKT ("\nVUserMain0: received device status of 0x%04x\n\n", status);
+
         // Get the device configurations status
         host.usbHostGetDeviceConfig(addr, endp, dev_cfg);
-        
-        fprintf(stderr, "\n\nVUserMain0: received device configuration of 0x%02x (%s)\n\n", dev_cfg, dev_cfg ? "enabled" : "disabled");
-        
+
+        USBDISPPKT ("\n\nVUserMain0: received device configuration of 0x%02x (%s)\n\n", dev_cfg, dev_cfg ? "enabled" : "disabled");
+
         // Set the device configuration
         host.usbHostSetDeviceConfig(addr, endp, 1);
-        
-        fprintf(stderr, "\nVUserMain0: set the device configuration for index 1\n\n");
-        
+
+        USBDISPPKT ("\nVUserMain0: set the device configuration for index 1\n\n");
+
         // Get the device configurations status
         host.usbHostGetDeviceConfig(addr, endp, dev_cfg);
-        
-        fprintf(stderr, "\n\nVUserMain0: received device configuration of 0x%02x (%s)\n\n", dev_cfg, dev_cfg ? "enabled" : "disabled");
-        
+
+        USBDISPPKT ("\n\nVUserMain0: received device configuration of 0x%02x (%s)\n\n", dev_cfg, dev_cfg ? "enabled" : "disabled");
+
         // Clear a device feature
         host.usbHostClearDeviceFeature(addr, endp, 0);
-        
+
         // Set a device feature
         host.usbHostSetDeviceFeature(addr, endp, 1);
+
+        // Get interface status
+        host.usbHostGetInterfaceStatus(addr, endp, status);
+
+        USBDISPPKT ("\nVUserMain0: received interface status of 0x%04x\n\n", status);
+
+        host.usbHostClearInterfaceFeature(addr, endp, 0);
+        host.usbHostSetInterfaceFeature(addr, endp, 0);
+
+        host.usbHostGetInterface(addr, endp, 0, altif);
+
+        USBDISPPKT ("\nVUserMain0: received get interface value of 0x%02x\n\n", altif);
+
+        host.usbHostSetInterface(addr, endp, 0, 1);
+        
+        host.usbHostGetEndpointStatus(addr, endp, status);
+        
+        USBDISPPKT ("\nVUserMain0: received endpoint status of 0x%02x (%s)\n\n", status, status ? "halted" : "not halted");
+        
+        host.usbHostSetEndpointFeature(addr, endp, usbModel::EP_HALT_FEATURE);
+        
+        host.usbHostGetEndpointStatus(addr, endp, status);
+        
+        USBDISPPKT ("\nVUserMain0: received endpoint status of 0x%02x (%s)\n\n", status, status ? "halted" : "not halted");
+        
+        host.usbHostClearEndpointFeature(addr, endp, usbModel::EP_HALT_FEATURE);
+        
+        host.usbHostGetEndpointStatus(addr, endp, status);
+        
+        USBDISPPKT ("\nVUserMain0: received endpoint status of 0x%02x (%s)\n\n", status, status ? "halted" : "not halted");
+        
+        host.usbHostGetEndpointSynchFrame(addr, endp, status);
+        
+        USBDISPPKT ("\nVUserMain0: received endpoint synch frame of 0x%04x\n\n", status);
+
     }
 
     // Wait a bit before halting to let the device receive the ACK

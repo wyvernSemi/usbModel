@@ -162,8 +162,8 @@ begin
     begin
       if (wr === 1'b1)
       begin            
-           dp                  = wdata[0];
-           dm                  = wdata[1];
+        dp                     = wdata[0];
+        dm                     = wdata[1];
       end
       rdata                    = {30'h0000, linem, linep};
     end

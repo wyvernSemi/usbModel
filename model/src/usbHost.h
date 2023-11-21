@@ -53,14 +53,16 @@ public:
     // -------------------------------------------------------------------------
 public:
 
-    int  usbHostWaitForConnection     (const unsigned polldelay = 10*ONE_US, const unsigned timeout = 3*ONE_MS);
+    // Device control methods
+    int  usbHostWaitForConnection     (const unsigned polldelay = 10*ONE_US,
+                                       const unsigned timeout = 3*ONE_MS);
 
     int  usbHostGetDeviceStatus       (const uint8_t  addr,      const uint8_t  endp,
                                              uint16_t &status,
                                        const unsigned idle = DEFAULTIDLEDELAY);
 
     int  usbHostGetDeviceDescriptor   (const uint8_t  addr,      const uint8_t  endp,
-                                             uint8_t data[],     const uint16_t reqlength,
+                                             uint8_t  data[],    const uint16_t reqlength,
                                              uint16_t &rxlen,    const bool     chklen = true, const
                                              unsigned idle = DEFAULTIDLEDELAY);
 
@@ -71,6 +73,15 @@ public:
 
     int  usbHostSetDeviceConfig       (const uint8_t  addr,      const uint8_t  endp,
                                        const uint8_t  index,
+                                       const unsigned idle = DEFAULTIDLEDELAY);
+
+
+    int  usbHostClearDeviceFeature    (const uint8_t  addr,      const uint8_t endp,
+                                       const uint16_t feature,
+                                       const unsigned idle = DEFAULTIDLEDELAY);
+
+    int  usbHostSetDeviceFeature      (const uint8_t  addr,      const uint8_t endp,
+                                       const uint16_t  feature,
                                        const unsigned idle = DEFAULTIDLEDELAY);
 
     int  usbHostGetConfigDescriptor   (const uint8_t  addr,      const uint8_t  endp,
@@ -89,51 +100,67 @@ public:
                                        const uint16_t wValue,
                                        const unsigned idle = DEFAULTIDLEDELAY);
 
-    int  usbHostClearDeviceFeature    (const uint8_t  addr, const uint8_t endp,
-                                       const uint16_t  feature,
+    // Interface control methods
+    int  usbHostGetInterfaceStatus    (const uint8_t  addr,      const uint8_t  endp,
+                                             uint16_t &status,
                                        const unsigned idle = DEFAULTIDLEDELAY);
 
-    int  usbHostSetDeviceFeature      (const uint8_t  addr, const uint8_t endp,
-                                       const uint16_t  feature,
+    int  usbHostClearInterfaceFeature (const uint8_t  addr,      const uint8_t endp,
+                                       const uint16_t feature,
+                                       const unsigned idle = DEFAULTIDLEDELAY);
+
+    int  usbHostSetInterfaceFeature   (const uint8_t  addr,      const uint8_t endp,
+                                       const uint16_t feature,
+                                       const unsigned idle = DEFAULTIDLEDELAY);
+
+    int  usbHostGetInterface          (const uint8_t  addr,      const uint8_t endp,
+                                       const uint16_t index,           uint8_t &altif,
+                                       const unsigned idle = DEFAULTIDLEDELAY);
+
+    int  usbHostSetInterface          (const uint8_t  addr,      const uint8_t endp,
+                                       const uint16_t index,     const uint8_t altif,
+                                       const unsigned idle = DEFAULTIDLEDELAY);
+
+    // Endpoint control methods
+    int  usbHostGetEndpointStatus     (const uint8_t  addr,      const uint8_t  endp,
+                                             uint16_t &status,
+                                       const unsigned idle = DEFAULTIDLEDELAY);
+
+    int  usbHostClearEndpointFeature  (const uint8_t  addr,      const uint8_t endp,
+                                       const uint16_t feature,
+                                       const unsigned idle = DEFAULTIDLEDELAY);
+                                       
+    int  usbHostSetEndpointFeature    (const uint8_t  addr,      const uint8_t endp,
+                                       const uint16_t feature,
+                                       const unsigned idle = DEFAULTIDLEDELAY);
+                                       
+    int  usbHostGetEndpointSynchFrame (const uint8_t  addr,      const uint8_t  endp,
+                                             uint16_t &framenum,
                                        const unsigned idle = DEFAULTIDLEDELAY);
 
     // -------------------------------------------------------------------------
     // Private methods
     // -------------------------------------------------------------------------
 private:
-    void sendTokenToDevice     (const int      pid,        const uint8_t  addr,    const uint8_t  endp,
-                                const unsigned idle = DEFAULTIDLEDELAY);
+    void sendTokenToDevice            (const int      pid,        const uint8_t  addr,    const uint8_t  endp,
+                                       const unsigned idle = DEFAULTIDLEDELAY);
 
-    int  sendDataToDevice      (const int      datatype,   const uint8_t data[],
-                                const int      len,
-                                const unsigned idle = DEFAULTIDLEDELAY);
+    int  sendDataToDevice             (const int      datatype,   const uint8_t data[],
+                                       const int      len,
+                                       const unsigned idle = DEFAULTIDLEDELAY);
 
-    int  getDataFromDevice     (const int      expPID,          uint8_t  data[],
-                                      int      &databytes,
-                                const unsigned idle = DEFAULTIDLEDELAY);
+    int  getDataFromDevice            (const int      expPID,          uint8_t  data[],
+                                             int      &databytes,
+                                       const unsigned idle = DEFAULTIDLEDELAY);
 
-    int  sendDeviceRequest     (const uint8_t  addr,      const uint8_t  endp,
-                                const uint8_t  reqtype,   const uint8_t  request,
-                                const uint16_t value = 0, const uint16_t index = 0, const uint16_t length = 0,
-                                const unsigned idle  = DEFAULTIDLEDELAY);
+    int  sendStandardRequest          (const uint8_t  addr,      const uint8_t  endp,
+                                       const uint8_t  reqtype,   const uint8_t  request,
+                                       const uint16_t value = 0, const uint16_t index = 0, const uint16_t length = 0,
+                                       const unsigned idle  = DEFAULTIDLEDELAY);
 
-    int  sendGetStatusRequest  (const uint8_t  addr,      const uint8_t  endp,
-                                const unsigned idle = DEFAULTIDLEDELAY);
-
-    int  sendGetDevCfgRequest  (const uint8_t  addr, const uint8_t endp,
-                                const uint8_t  index,
-                                const unsigned idle = DEFAULTIDLEDELAY);
-
-    int  sendGetDevDescRequest (const uint8_t  addr,      const uint8_t  endp,
-                                const uint16_t length,
-                                const unsigned idle = DEFAULTIDLEDELAY);
-
-    int  sendGetCfgDescRequest (const uint8_t  addr,      const uint8_t  endp,
-                                const uint16_t length,    const unsigned idle);
-
-    int sendGetStrDescRequest  (const uint8_t  addr,      const uint8_t  endp,
-                                const uint8_t  strindex,  const uint16_t length = 0,
-                                const unsigned idle = DEFAULTIDLEDELAY);
+    int  getStatus                    (const uint8_t addr,       const uint8_t  endp,
+                                       const uint8_t type,             uint16_t &status,
+                                       const unsigned idle = DEFAULTIDLEDELAY);
 
     // -------------------------------------------------------------------------
     // Internal private state

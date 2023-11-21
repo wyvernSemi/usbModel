@@ -43,6 +43,7 @@ private:
     static const int      NUMIF0EPS                = 1;
     static const int      NUMIF1EPS                = 2;
     static const int      TOTALNUMEPS              = NUMIF0EPS + NUMIF1EPS;
+    static const int      MAXNUMEPS                = 16;
     
     static const uint8_t  REMOTE_WAKEUP_STATE      = usbModel::USB_REMOTE_WAKEUP_OFF;
     static const uint8_t  SELF_POWERED_STATE       = usbModel::USB_NOT_SELF_POWERED;
@@ -57,8 +58,11 @@ public:
         usbPliApi(nodeIn, name),
         usbPkt(name),
         deviceConfigured(false),
-        framenumber(0),
-        ephalted{{false}}
+        ephalted{{false}},
+        epvalid{{true,  false}, {true,  true},  {false, false}, {false, false},
+                {false, false}, {false, false}, {false, false}, {false, false},
+                {false, true},  {false, false}, {false, false}, {false, false},
+                {false, false}, {false, false}, {false, false}, {false, false}}
     {
         strdesc[0].bLength    = 6; // bLength + bDescriptorType bytes plus two wLANGID entries (2 bytes each)
         strdesc[0].bString[0] = 0x0809; // English UK
@@ -157,10 +161,12 @@ private:
     int          processSOF            (const uint32_t args[], const int      idle = DEFAULT_IDLE);
 
     //-------------------------------------------------------------
-    // Method for handling device requests
+    // Methods for handling requests
     //-------------------------------------------------------------
 
     int          handleDevReq          (const usbModel::setupRequest* sreq, const int idle = DEFAULT_IDLE);
+    int          handleIfReq           (const usbModel::setupRequest* sreq, const int idle = DEFAULT_IDLE);
+    int          handleEpReq           (const usbModel::setupRequest* sreq, const int idle = DEFAULT_IDLE);
 
     //-------------------------------------------------------------
     // Internal device state
@@ -169,8 +175,8 @@ private:
     // Assigned device address
     int                    devaddr;
     bool                   deviceConfigured;
-    uint16_t               framenumber;
-    bool                   ephalted[TOTALNUMEPS];
+    bool                   ephalted[MAXNUMEPS][2];
+    bool                   epvalid[MAXNUMEPS][2];
 
     // Internal buffers for use by class methods
     uint8_t                rxdata [usbModel::MAXBUFSIZE];
