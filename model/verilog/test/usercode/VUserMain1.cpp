@@ -42,15 +42,9 @@ extern "C" void VUserMain1()
     char sbuf[usbModel::ERRBUFSIZE];
 
     usbDevice dev(node);
-
-    // Wait for POR to go inactive
-    dev.apiWaitOnNotReset();
     
     // Delay before connecting
-    dev.apiSendIdle(500);
-    
-    // Connect the device to the line
-    dev.apiEnablePullup();
+    dev.usbDeviceSleepUs(50);
 
     // Run the device
     if (dev.usbDeviceRun() != usbModel::USBOK)
@@ -60,10 +54,10 @@ extern "C" void VUserMain1()
         fprintf(stderr, "%s\n", sbuf);
         
         // Halt the simulation
-        dev.apiHaltSimulation();
+        dev.usbDeviceEndExecution();
     }
 
-    dev.apiSendIdle(0);
+    dev.usbDeviceSleepUs(usbDevice::SLEEP_FOREVER);
 
 }
 

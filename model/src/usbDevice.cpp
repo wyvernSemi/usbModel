@@ -30,7 +30,7 @@
 //
 // Public method to start the device being active on the line.
 // An optional idle argument (that has a default value) can be
-// given to set the delay between repsonses from the device.
+// given to set the delay between responses from the device.
 //
 // Returns usbModel::USBOK on success, or usbModel::USBERROR
 // on otherwise.
@@ -44,8 +44,11 @@ int usbDevice::usbDeviceRun(const int idle)
     uint32_t             args[4];
     int                  databytes;
 
-    // Wait for reset deassertion
+    // Ensure that reset is deasserted
     apiWaitOnNotReset();
+    
+    // Connect the device to the line
+    apiEnablePullup();
 
     // Loop forever
     while (error == usbModel::USBOK)
@@ -870,5 +873,9 @@ int  usbDevice::processOut (const uint32_t args[], uint8_t data[], const int dat
 
 int  usbDevice::processSOF(const uint32_t args[], const int idle)
 {
+    USBDISPPKT("  %s RX SOF: FRAME NUMBER 0x%04x\n", name.c_str(), args[usbModel::ARGFRAMEIDX]);
+    
+    framenum = args[usbModel::ARGFRAMEIDX] & 0x7ff;
+    
     return usbModel::USBOK;
 }

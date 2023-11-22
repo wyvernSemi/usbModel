@@ -25,6 +25,10 @@
 
 #include "usbHost.h"
 
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+// Public method definitions
+// +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 // -------------------------------------------------------------------------
 // -------------------------------------------------------------------------
 
@@ -32,6 +36,9 @@ int usbHost::usbHostWaitForConnection (const unsigned polldelay, const unsigned 
 {
     int      linestate;
     unsigned clkcycles  = 0;
+    
+    // Make sure reset is deasserted before checking for a connection
+    apiWaitOnNotReset();
 
     while ((linestate = apiReadLineState()) == usbModel::USB_SE0 && clkcycles < timeout)
     {
@@ -47,6 +54,7 @@ int usbHost::usbHostWaitForConnection (const unsigned polldelay, const unsigned 
     else
     {
         USBDISPPKT("  %s USB DEVICE CONNECTED (at cycle %d)\n", name.c_str(), apiGetClkCount());
+        connected = true;
     }
 
     return linestate;
@@ -62,6 +70,7 @@ int usbHost::usbHostGetDeviceStatus (const uint8_t addr, const uint8_t endp, uin
 
 // -------------------------------------------------------------------------
 // -------------------------------------------------------------------------
+
 int usbHost::usbHostGetDeviceConfig (const uint8_t addr, const uint8_t endp, uint8_t &cfgstate, const uint8_t index, const unsigned idle)
 {
     int error = usbModel::USBOK;
@@ -289,7 +298,7 @@ int usbHost::usbHostGetConfigDescriptor  (const  uint8_t  addr,   const uint8_t 
 
 // -------------------------------------------------------------------------
 // -------------------------------------------------------------------------
-int  usbHost::usbHostSetAddress (const uint8_t addr, const uint8_t endp, const uint16_t wValue, const unsigned idle)
+int  usbHost::usbHostSetDeviceAddress (const uint8_t addr, const uint8_t endp, const uint16_t wValue, const unsigned idle)
 {
     return sendStandardRequest(addr, endp,
                                usbModel::USB_DEV_REQTYPE_SET,
@@ -540,6 +549,16 @@ void usbHost::sendTokenToDevice (const int pid, const uint8_t addr, const uint8_
 // -------------------------------------------------------------------------
 // -------------------------------------------------------------------------
 
+void usbHost::sendSofToDevice (const int pid, const uint16_t framenum, const unsigned idle)
+{
+    int numbits = usbPktGen(nrzi, pid, framenum);
+
+    apiSendPacket(nrzi, numbits, idle);
+}
+
+// -------------------------------------------------------------------------
+// -------------------------------------------------------------------------
+
 int usbHost::sendDataToDevice (const int datatype, const uint8_t data[], const int len, const unsigned idle)
 {
     int error = usbModel::USBOK;
@@ -603,9 +622,9 @@ int usbHost::getDataFromDevice(const int expPID, uint8_t data[], int &databytes,
 // -------------------------------------------------------------------------
 // -------------------------------------------------------------------------
 int usbHost::sendStandardRequest(const uint8_t  addr,    const uint8_t  endp,
-                               const uint8_t  reqtype, const uint8_t  request,
-                               const uint16_t value,   const uint16_t index, const uint16_t length,
-                               const unsigned idle)
+                                 const uint8_t  reqtype, const uint8_t  request,
+                                 const uint16_t value,   const uint16_t index, const uint16_t length,
+                                 const unsigned idle)
 {
     int                  error = usbModel::USBOK;
 
@@ -614,6 +633,9 @@ int usbHost::sendStandardRequest(const uint8_t  addr,    const uint8_t  endp,
     int                  pid;
     int                  databytes;
     uint32_t             args[4];
+    
+    // Check an SOF isn't due before sending packet
+    checkSof();
 
     // SETUP
     sendTokenToDevice(usbModel::PID_TOKEN_SETUP, addr, endp, idle);

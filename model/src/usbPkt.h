@@ -54,6 +54,7 @@ public:
         sprintf(msg, "%s", errbuf);
     }
 
+protected:
     //-------------------------------------------------------------
     // Packet generation methods
     //-------------------------------------------------------------
@@ -68,8 +69,6 @@ public:
     //-------------------------------------------------------------
     
     int          usbPktDecode (const usbModel::usb_signal_t nrzibuf[], int& pid, uint32_t args[], uint8_t data[], int &databytes);
-
-protected:
 
     //-------------------------------------------------------------
     // Force reset of internal state

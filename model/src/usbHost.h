@@ -27,6 +27,7 @@
 #define _USB_HOST_H_
 
 #include <cstring>
+#include <cmath>
 
 #include "usbCommon.h"
 #include "usbPkt.h"
@@ -44,7 +45,10 @@ public:
 
     usbHost (int nodeIn, std::string name = std::string(FMT_HOST "HOST" FMT_NORMAL)) :
         usbPliApi(nodeIn, name),
-        usbPkt(name)
+        usbPkt(name),
+        connected(false),
+        keepalive(true),
+        framenum(0)
     {
     }
 
@@ -53,16 +57,63 @@ public:
     // -------------------------------------------------------------------------
 public:
 
-    // Device control methods
+    // Device sleep method in microseconds
+    void usbHostSleepUs(const unsigned time_us)
+    {
+        unsigned ticks         = time_us * ONE_US;
+        unsigned maxidlechunks = ONE_US;
+
+        // Break up idle into chunks to ensure an SOF is sent
+        // within spec if delay argument is large
+        do
+        {
+            // Check if an SOF is needed (if enabled)
+            checkSof();
+
+            if (ticks >= maxidlechunks)
+            {
+                apiSendIdle(maxidlechunks);
+                ticks -= maxidlechunks;
+            }
+            else
+            {
+                apiSendIdle(ticks);
+                ticks = 0;
+            }
+        }
+        while(ticks);
+    }
+
+    // Get current time
+    float usbHostGetTimeUs()
+    {
+        unsigned ticks = apiGetClkCount();
+        float timeus = (float)ticks / (float)ONE_US;
+
+        return timeus;
+    }
+
+    // End execution of the program
+    void usbHostEndExecution()
+    {
+        apiHaltSimulation();
+    }
+
+    // Wait for a connection on the line
     int  usbHostWaitForConnection     (const unsigned polldelay = 10*ONE_US,
-                                       const unsigned timeout = 3*ONE_MS);
+                                       const unsigned timeout   =  3*ONE_MS);
+
+    // Device control methods
+    int  usbHostSetDeviceAddress      (const uint8_t  addr,      const uint8_t  endp,
+                                       const uint16_t wValue,
+                                       const unsigned idle = DEFAULTIDLEDELAY);
 
     int  usbHostGetDeviceStatus       (const uint8_t  addr,      const uint8_t  endp,
                                              uint16_t &status,
                                        const unsigned idle = DEFAULTIDLEDELAY);
 
     int  usbHostGetDeviceDescriptor   (const uint8_t  addr,      const uint8_t  endp,
-                                             uint8_t  data[],    const uint16_t reqlength,
+                                             uint8_t  data[],    const uint16_t reqlen,
                                              uint16_t &rxlen,    const bool     chklen = true, const
                                              unsigned idle = DEFAULTIDLEDELAY);
 
@@ -96,10 +147,6 @@ public:
                                        const uint16_t langid = 0x0809,
                                        const unsigned idle   = DEFAULTIDLEDELAY);
 
-    int  usbHostSetAddress            (const uint8_t  addr,      const uint8_t  endp,
-                                       const uint16_t wValue,
-                                       const unsigned idle = DEFAULTIDLEDELAY);
-
     // Interface control methods
     int  usbHostGetInterfaceStatus    (const uint8_t  addr,      const uint8_t  endp,
                                              uint16_t &status,
@@ -129,11 +176,11 @@ public:
     int  usbHostClearEndpointFeature  (const uint8_t  addr,      const uint8_t endp,
                                        const uint16_t feature,
                                        const unsigned idle = DEFAULTIDLEDELAY);
-                                       
+
     int  usbHostSetEndpointFeature    (const uint8_t  addr,      const uint8_t endp,
                                        const uint16_t feature,
                                        const unsigned idle = DEFAULTIDLEDELAY);
-                                       
+
     int  usbHostGetEndpointSynchFrame (const uint8_t  addr,      const uint8_t  endp,
                                              uint16_t &framenum,
                                        const unsigned idle = DEFAULTIDLEDELAY);
@@ -143,6 +190,9 @@ public:
     // -------------------------------------------------------------------------
 private:
     void sendTokenToDevice            (const int      pid,        const uint8_t  addr,    const uint8_t  endp,
+                                       const unsigned idle = DEFAULTIDLEDELAY);
+    
+    void sendSofToDevice              (const int      pid,       const uint16_t framenum,
                                        const unsigned idle = DEFAULTIDLEDELAY);
 
     int  sendDataToDevice             (const int      datatype,   const uint8_t data[],
@@ -158,9 +208,32 @@ private:
                                        const uint16_t value = 0, const uint16_t index = 0, const uint16_t length = 0,
                                        const unsigned idle  = DEFAULTIDLEDELAY);
 
-    int  getStatus                    (const uint8_t addr,       const uint8_t  endp,
-                                       const uint8_t type,             uint16_t &status,
+
+    int  getStatus                    (const uint8_t  addr,      const uint8_t  endp,
+                                       const uint8_t  type,            uint16_t &status,
                                        const unsigned idle = DEFAULTIDLEDELAY);
+
+    void checkSof                     (const unsigned idle = DEFAULTIDLEDELAY)
+    {
+        if (connected && keepalive)
+        {
+            // Get the current time in milliseconds
+            float currtimeMs = usbHostGetTimeUs() / (float)1000.0;
+
+
+
+            // If the frame number is less that the current time, send an SOF
+            if ((float)framenum < currtimeMs)
+            {
+                apiSendIdle(idle);
+
+                sendSofToDevice(usbModel::PID_TOKEN_SOF, (uint16_t)(framenum & 0x7ff));
+
+                // Schedule a new SOF at the next 1 ms boundary
+                framenum = (uint64_t)floor(currtimeMs) + 1;
+            }
+        }
+    }
 
     // -------------------------------------------------------------------------
     // Internal private state
@@ -170,6 +243,11 @@ private:
     usbModel::usb_signal_t nrzi   [usbModel::MAXBUFSIZE];
     uint8_t                rxdata [usbModel::MAXBUFSIZE];
     char                   sbuf   [usbModel::ERRBUFSIZE];
+
+    // Flag to keep connected device alive (send SOFs)
+    bool                   connected;
+    bool                   keepalive;
+    uint64_t               framenum;
 
 };
 

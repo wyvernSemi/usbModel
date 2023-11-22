@@ -166,6 +166,9 @@ namespace usbModel
     static const uint8_t  CONTROL_EP               = 0x00;
     
     static const uint16_t EP_HALT_FEATURE          = 0x0000;
+    
+    static const uint16_t LANGID_ENG_UK            = 0x0809;
+    static const uint16_t LANGID_ENG_US            = 0x0409;
 
 // As these descriptor structures will used to form a single
 // super-configuration structure, padding beyond bytes must be disabled
@@ -355,8 +358,8 @@ namespace usbModel
         {
             bLength             = 0x08;                                // 6 Bytes
             bDescriptorType     = STRING_DESCRIPTOR_TYPE;              // 0x03 = string descriptor;
-            wLangid[0]          = 0x0809;                              // Engish (UK)
-            wLangid[1]          = 0x0409;                              // English (USA)
+            wLangid[0]          = LANGID_ENG_UK;                       // Engish (UK)
+            wLangid[1]          = LANGID_ENG_UK;                       // English (USA)
         }
     };
 

@@ -64,7 +64,7 @@ public:
     // Must give a node number which must be unique for all usbDevice
     // and usbHost objects and match the NODENUM parameter of the
     // usbModel instantiation in the verilog that it's meant to drive.
-    // 
+    //
     // An option string argument can be supplied to use in formatted
     // output.
     //
@@ -74,43 +74,7 @@ public:
     {
     }
 
-    //-------------------------------------------------------------
-    // apiGetClkCount
-    //
-    // Returns the value of the clkcount register in the verilog
-    // which increments from time 0 one per system clock.
-    //
-    // An optional delta argument allows simuation time to advance
-    // If set to DELTA_CYCLE (default), simulation time is not
-    // advanced. If set to 0, time is advanced.
-    //
-    //-------------------------------------------------------------
-
-    unsigned apiGetClkCount(int delta = DELTA_CYCLE)
-    {
-        unsigned clkCount;
-
-        VRead(CLKCOUNT, &clkCount, delta, node);
-
-        return clkCount;
-    }
-
-    //-------------------------------------------------------------
-    // apiReadLineState
-    //
-    // Returns the state of the USB line as a two bits in an
-    // unsigned number with D+ in bit 0 an D- in bit 1.
-    //
-    //-------------------------------------------------------------
-
-    unsigned apiReadLineState()
-    {
-        unsigned rawline;
-
-        VRead(LINE, &rawline, 0, node);
-
-        return rawline;
-    }
+protected:
 
     //-------------------------------------------------------------
     // apiSendIdle
@@ -136,6 +100,121 @@ public:
         do {
             currtime = apiGetClkCount(ADVANCE_TIME);
         } while ((ticks == IDLE_FOREVER) || ((currtime-time) < ticks));
+    }
+
+    //-------------------------------------------------------------
+    // apiWaitOnNotReset
+    //
+    // Polls the state of the nreset input port of usbModel module
+    // until it becomes inactive.
+    //
+    //-------------------------------------------------------------
+
+    void apiWaitOnNotReset(void)
+    {
+        unsigned reset;
+
+        do {
+            VRead(RESET_STATE, &reset, ADVANCE_TIME, node);
+        } while (reset);
+    }
+
+    //-------------------------------------------------------------
+    // usbEnablePullup
+    //
+    // Enables the pullup(s) on the usbModel module instantiation.
+    // The default of this at time 0 is dependent on whether
+    // configured as a host (default enabled) or a device (default
+    // disabled). Enabling on a device can be seen by the host
+    // a device connection, and disabling as a diconnection.
+    //
+    //-------------------------------------------------------------
+
+    void apiEnablePullup(void)
+    {
+        VWrite(PULLUP, 1, ADVANCE_TIME, node);
+    }
+
+    //-------------------------------------------------------------
+    // usbDisablePullup
+    //
+    // Diables the pullup(s) on the usbModel module instantiation.
+    // The default of this at time 0 is dependent on whether
+    // configured as a host (default enabled) or a device (default
+    // disabled). Enabling on a device can be seen by the host
+    // a device connection, and disabling as a diconnection.
+    //
+    //-------------------------------------------------------------
+
+    void apiDisablePullup(void)
+    {
+        VWrite(PULLUP, 0, ADVANCE_TIME, node);
+    }
+
+    //-------------------------------------------------------------
+    // apiHaltSimulation
+    //
+    // Halts the simulation.
+    //
+    // When run in batch mode this will call $finish in the usbModel
+    // model and $stop when in GUI mode.
+    //
+    //-------------------------------------------------------------
+
+    void apiHaltSimulation()
+    {
+        VWrite(UVH_FINISH, 0, 0, node);
+    }
+
+    //-------------------------------------------------------------
+    // apiGetClkCount
+    //
+    // Returns the value of the clkcount register in the verilog
+    // which increments from time 0 one per system clock.
+    //
+    // An optional delta argument allows simuation time to advance
+    // If set to DELTA_CYCLE (default), simulation time is not
+    // advanced. If set to 0, time is advanced.
+    //
+    //-------------------------------------------------------------
+
+    unsigned apiGetClkCount(int delta = DELTA_CYCLE)
+    {
+        unsigned clkCount;
+
+        VRead(CLKCOUNT, &clkCount, delta, node);
+
+        return clkCount;
+    }
+
+    //-------------------------------------------------------------
+    // apiReset
+    //
+    // Externally called method to force intenal state to be reset
+    // separate from a USB reset condition.
+    //
+    //-------------------------------------------------------------
+
+    void apiReset()
+    {
+        suspended = false;
+    }
+
+    //-------------------------------------------------------------
+    // apiReadLineState
+    //
+    // Returns the state of the USB line as a two bits in an
+    // unsigned number with D+ in bit 0 an D- in bit 1.
+    //
+    //-------------------------------------------------------------
+
+    unsigned apiReadLineState()
+    {
+        unsigned rawline;
+
+        VRead(LINE, &rawline, 0, node);
+
+        return rawline;
     }
 
     //-------------------------------------------------------------
@@ -310,92 +389,15 @@ public:
         return bitcount;
     }
 
-    //-------------------------------------------------------------
-    // apiWaitOnNotReset
-    //
-    // Polls the state of the nreset input port of usbModel module
-    // until it becomes inactive.
-    //
-    //-------------------------------------------------------------
-
-    void apiWaitOnNotReset(void)
-    {
-        unsigned reset;
-
-        do {
-            VRead(RESET_STATE, &reset, ADVANCE_TIME, node);
-        } while (reset);
-    }
-
-    //-------------------------------------------------------------
-    // usbEnablePullup
-    //
-    // Enables the pullup(s) on the usbModel module instantiation.
-    // The default of this at time 0 is dependent on whether
-    // configured as a host (default enabled) or a device (default
-    // disabled). Enabling on a device can be seen by the host
-    // a device connection, and disabling as a diconnection.
-    //
-    //-------------------------------------------------------------
-
-    void apiEnablePullup(void)
-    {
-        VWrite(PULLUP, 1, ADVANCE_TIME, node);
-    }
-
-    //-------------------------------------------------------------
-    // usbDisablePullup
-    //
-    // Diables the pullup(s) on the usbModel module instantiation.
-    // The default of this at time 0 is dependent on whether
-    // configured as a host (default enabled) or a device (default
-    // disabled). Enabling on a device can be seen by the host
-    // a device connection, and disabling as a diconnection.
-    //
-    //-------------------------------------------------------------
-
-    void apiDisablePullup(void)
-    {
-        VWrite(PULLUP, 0, ADVANCE_TIME, node);
-    }
-
-    //-------------------------------------------------------------
-    // apiReset
-    //
-    // Externally called method to force intenal state to be reset
-    // separate from a USB reset condition.
-    //
-    //-------------------------------------------------------------
-
-    void apiReset()
-    {
-        suspended = false;
-    }
-
-    //-------------------------------------------------------------
-    // apiHaltSimulation
-    //
-    // Halts the simulation.
-    //
-    // When run in batch mode this will call $finish in the usbModel
-    // model and $stop when in GUI mode.
-    //
-    //-------------------------------------------------------------
-
-    void apiHaltSimulation()
-    {
-        VWrite(UVH_FINISH, 0, 0, node);
-    }
-
 private:
 
     //-------------------------------------------------------------
     // Internal private state.
     //-------------------------------------------------------------
-    
+
     // Node number of VProc module for this API object
     int  node;
-    
+
     // Suspended state
     bool suspended;
 

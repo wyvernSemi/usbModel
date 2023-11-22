@@ -708,7 +708,7 @@ int usbPkt::usbPktDecode(const usbModel::usb_signal_t nrzibuf[], int& pid, uint3
             return usbModel::USBERROR;
         }
 
-        USBDISPPKT("  %s RX TOKEN:   SOF\n    " FMT_DATA_GREY "frame= %d" FMT_NORMAL "\n",
+        USBDISPPKT("  %s RX TOKEN:   SOF\n    " FMT_DATA_GREY "frame=%d" FMT_NORMAL "\n",
             name.c_str(), args[usbModel::ARGFRAMEIDX]);
 
         break;

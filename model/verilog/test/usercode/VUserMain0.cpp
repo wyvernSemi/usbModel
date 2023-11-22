@@ -53,10 +53,8 @@ extern "C" void VUserMain0()
     // Create host interface object to usbModel
     usbHost host(node);
 
-    // Wait for reset to be deasserted
-    host.apiWaitOnNotReset();
-
-    host.apiSendIdle(100);
+    // Wait for a bit
+    host.usbHostSleepUs(10);
 
     // Wait for a connection...
     if ((linestate = host.usbHostWaitForConnection()) != usbModel::USB_J)
@@ -67,7 +65,7 @@ extern "C" void VUserMain0()
             host.usbPktGetErrMsg(scratchbuf);
             USBDISPPKT ("\nVUserMain0: ***ERROR: %s\n", scratchbuf);
         }
-        // If a valid linestate, but not J then not a full speed connection
+        // If a valid line state, but not J, then not a full speed connection
         else
         {
             USBDISPPKT ("\nVUserMain0: ***ERROR: USB line state (%s) does not indicate a full speed device connected\n",
@@ -86,7 +84,7 @@ extern "C" void VUserMain0()
         // Set the device address to 1
         addr = 1;
         endp = 0;
-        host.usbHostSetAddress(usbModel::CONTROL_ADDR, usbModel::CONTROL_EP, addr);
+        host.usbHostSetDeviceAddress(usbModel::CONTROL_ADDR, usbModel::CONTROL_EP, addr);
 
         USBDISPPKT ("\nVUserMain0: sent SET_ADDR (0x%04x)\n\n", addr);
 
@@ -193,10 +191,10 @@ extern "C" void VUserMain0()
     }
 
     // Wait a bit before halting to let the device receive the ACK
-    host.apiSendIdle(100);
+    host.usbHostSleepUs(10);
 
     // Halt the simulation
-    host.apiHaltSimulation();
+    host.usbHostEndExecution();
 
 
 }
