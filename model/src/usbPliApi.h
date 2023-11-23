@@ -42,6 +42,10 @@ class usbPliApi
 public:
     static const int ONE_US          = 12;
     static const int ONE_MS          = ONE_US * 1000;
+
+    static const int IS_HOST         = false;
+    static const int IS_DEVICE       = false;
+
 private:
 
     static const int IDLE_FOREVER = 0;
@@ -208,11 +212,11 @@ protected:
     //
     //-------------------------------------------------------------
 
-    unsigned apiReadLineState()
+    unsigned apiReadLineState(const int delta = DELTA_CYCLE)
     {
         unsigned rawline;
 
-        VRead(LINE, &rawline, 0, node);
+        VRead(LINE, &rawline, delta, node);
 
         return rawline;
     }
@@ -279,7 +283,7 @@ protected:
     //
     //-------------------------------------------------------------
 
-    int apiWaitForPkt(usbModel::usb_signal_t nrzi[])
+    int apiWaitForPkt(usbModel::usb_signal_t nrzi[], const bool isDevice = true)
     {
         unsigned     line;
         bool         idle         = true;
@@ -294,10 +298,19 @@ protected:
 
         do {
             // Get status on USB line
-            line = apiReadLineState();
+            line = apiReadLineState(0);
+
+            // If a host and SE0 seen when idle, there is no device connected
+            if (!isDevice)
+            {
+                if (idle && line == usbModel::USB_SE0)
+                {
+                    return usbModel::USBDISCONNECTED;
+                }
+            }
 
             // If anything other than a J (when already idle) come out of suspend
-            if (suspended && (line == usbModel::USB_K || line == usbModel::USB_SE0))
+            if (suspended && (line == usbModel::USB_K || (isDevice && line == usbModel::USB_SE0)))
             {
                 USBDISPPKT("Device activated from suspension\n");
                 suspended = false;
@@ -308,8 +321,8 @@ protected:
             {
                 idle = false;
             }
-            // If idle and an SE0 seem then this may be a reset
-            else if (idle && line == usbModel::USB_SE0)
+            // If idle and an SE0 seen then this may be a reset
+            else if (isDevice && idle && line == usbModel::USB_SE0)
             {
                 lookforreset = true;
                 rstcount++;
@@ -376,7 +389,7 @@ protected:
             }
             else
             {
-                if (++idlecount >= MINSUSPENDCOUNT)
+                if (isDevice && ++idlecount >= MINSUSPENDCOUNT)
                 {
                     USBDISPPKT("Device suspended\n");
                     suspended = true;

@@ -36,7 +36,7 @@ int usbHost::usbHostWaitForConnection (const unsigned polldelay, const unsigned 
 {
     int      linestate;
     unsigned clkcycles  = 0;
-    
+
     // Make sure reset is deasserted before checking for a connection
     apiWaitOnNotReset();
 
@@ -65,6 +65,7 @@ int usbHost::usbHostWaitForConnection (const unsigned polldelay, const unsigned 
 
 int usbHost::usbHostGetDeviceStatus (const uint8_t addr, const uint8_t endp, uint16_t &status, const unsigned idle)
 {
+
     return getStatus(addr, endp, usbModel::USB_DEV_REQTYPE_GET, status, idle);
 }
 
@@ -590,14 +591,16 @@ int usbHost::getDataFromDevice(const int expPID, uint8_t data[], int &databytes,
     uint32_t             args[4];
 
     // Wait for data
-    apiWaitForPkt(nrzi);
-
-    if (usbPktDecode(nrzi, pid, args, data, databytes) != usbModel::USBOK)
+    if (apiWaitForPkt(nrzi, usbPliApi::IS_HOST) == usbModel::USBDISCONNECTED)
+    {
+        USBERRMSG ("***ERROR: getDataFromDevice: no device connected\n");
+        error = usbModel::USBDISCONNECTED;
+    }
+    else if ((error = usbPktDecode(nrzi, pid, args, data, databytes)) != usbModel::USBOK)
     {
         USBERRMSG ("***ERROR: getDataFromDevice: received bad packet waiting for data\n");
         usbPktGetErrMsg(sbuf);
         USBERRMSG ("%s\n", sbuf);
-        error = usbModel::USBERROR;
     }
     else
     {
@@ -633,7 +636,7 @@ int usbHost::sendStandardRequest(const uint8_t  addr,    const uint8_t  endp,
     int                  pid;
     int                  databytes;
     uint32_t             args[4];
-    
+
     // Check an SOF isn't due before sending packet
     checkSof();
 
@@ -653,7 +656,12 @@ int usbHost::sendStandardRequest(const uint8_t  addr,    const uint8_t  endp,
     do
     {
         // Wait for ACK
-        apiWaitForPkt(nrzi);
+        if (apiWaitForPkt(nrzi, usbPliApi::IS_HOST) == usbModel::USBDISCONNECTED)
+        {
+            USBERRMSG ("***ERROR: sendStandardRequest: no device connected\n");
+            error = usbModel::USBDISCONNECTED;
+            break;
+        }
 
         if (usbPktDecode(nrzi, pid, args, rxdata, databytes) != usbModel::USBOK)
         {
@@ -667,6 +675,7 @@ int usbHost::sendStandardRequest(const uint8_t  addr,    const uint8_t  endp,
         if (pid != usbModel::PID_HSHK_ACK && pid != usbModel::PID_HSHK_NAK)
         {
             USBERRMSG("***ERROR: sendStandardRequest: received unexpected packet ID (0x%02x)\n", pid);
+            error = usbModel::USBERROR;
             break;
         }
 
@@ -684,33 +693,69 @@ int usbHost::getStatus (const uint8_t addr, const uint8_t endp, const uint8_t ty
     int databytes;
 
     // Send out the request
-    if (sendStandardRequest(addr, endp,
-                          type,
-                          usbModel::USB_REQ_GET_STATUS,
-                          0,                                        // wValue
-                          0,                                        // wIndex
-                          2,                                        // wLength
-                          idle) != usbModel::USBOK)
-    {
-        error = usbModel::USBERROR;
-    }
-    else
+    if ((error = sendStandardRequest(addr, endp,
+                                     type,
+                                     usbModel::USB_REQ_GET_STATUS,
+                                     0,                                        // wValue
+                                     0,                                        // wIndex
+                                     2,                                        // wLength
+                                     idle)) == usbModel::USBOK)
     {
         // Send IN
         sendTokenToDevice(usbModel::PID_TOKEN_IN, addr, endp, idle);
 
         // Receive requested data
-        if (getDataFromDevice(usbModel::PID_DATA_1, rxdata, databytes, idle) != usbModel::USBOK)
-        {
-            error = usbModel::USBERROR;
-        }
-        else
+        if ((error = getDataFromDevice(usbModel::PID_DATA_1, rxdata, databytes, idle)) == usbModel::USBOK)
         {
             status = (uint16_t)rxdata[0] | (((uint16_t)rxdata[1]) << 8);
         }
     }
 
     return error;
+}
+
+// -------------------------------------------------------------------------
+// -------------------------------------------------------------------------
+
+bool usbHost::checkConnected()
+{
+    unsigned line = apiReadLineState();
+    
+    if (line == usbModel::USB_SE0 && connected)
+    {
+        connected = false;
+        USBDISPPKT("  %s USB DEVICE DISCONNECTED (at cycle %d)\n", name.c_str(), apiGetClkCount());
+    }
+    else if (line != usbModel::USB_SE0 && !connected)
+    {
+        connected = true;
+        USBDISPPKT("  %s USB DEVICE CONNECTED (at cycle %d)\n", name.c_str(), apiGetClkCount());
+    }    
+    
+    return connected;
+}
+
+// -------------------------------------------------------------------------
+// -------------------------------------------------------------------------
+
+void usbHost::checkSof (const unsigned idle)
+{
+    if (checkConnected() && keepalive)
+    {
+        // Get the current time in milliseconds
+        float currtimeMs = usbHostGetTimeUs() / (float)1000.0;
+
+        // If the frame number is less that the current time, send an SOF
+        if ((float)framenum < currtimeMs)
+        {
+            apiSendIdle(idle);
+
+            sendSofToDevice(usbModel::PID_TOKEN_SOF, (uint16_t)(framenum & 0x7ff));
+
+            // Schedule a new SOF at the next 1 ms boundary
+            framenum = (uint64_t)floor(currtimeMs) + 1;
+        }
+    }
 }
 
 

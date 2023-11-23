@@ -87,6 +87,7 @@ namespace usbModel
     static const int      USBUNSUPPORTED           = -2;
     static const int      USBRESET                 = -3;
     static const int      USBSUSPEND               = -4;
+    static const int      USBDISCONNECTED          = -5;
     static const int      ERRBUFSIZE               = 8192;
     static const int      MAXBUFSIZE               = 2048;
 

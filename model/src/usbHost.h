@@ -37,7 +37,7 @@ class usbHost : public usbPliApi, public usbPkt
 {
 public:
 
-    static const int DEFAULTIDLEDELAY = 4; // 0.33us at 12MHz
+    static const int  DEFAULTIDLEDELAY = 4; // 0.33us at 12MHz
 
     // -------------------------------------------------------------------------
     // Constructor
@@ -60,8 +60,8 @@ public:
     // Device sleep method in microseconds
     void usbHostSleepUs(const unsigned time_us)
     {
-        unsigned ticks         = time_us * ONE_US;
-        unsigned maxidlechunks = ONE_US;
+        unsigned ticks         = time_us * usbPliApi::ONE_US;
+        unsigned maxidlechunks = usbPliApi::ONE_US;
 
         // Break up idle into chunks to ensure an SOF is sent
         // within spec if delay argument is large
@@ -88,7 +88,7 @@ public:
     float usbHostGetTimeUs()
     {
         unsigned ticks = apiGetClkCount();
-        float timeus = (float)ticks / (float)ONE_US;
+        float timeus = (float)ticks / (float)usbPliApi::ONE_US;
 
         return timeus;
     }
@@ -100,8 +100,8 @@ public:
     }
 
     // Wait for a connection on the line
-    int  usbHostWaitForConnection     (const unsigned polldelay = 10*ONE_US,
-                                       const unsigned timeout   =  3*ONE_MS);
+    int  usbHostWaitForConnection     (const unsigned polldelay = 10*usbPliApi::ONE_US,
+                                       const unsigned timeout   =  3*usbPliApi::ONE_MS);
 
     // Device control methods
     int  usbHostSetDeviceAddress      (const uint8_t  addr,      const uint8_t  endp,
@@ -213,27 +213,8 @@ private:
                                        const uint8_t  type,            uint16_t &status,
                                        const unsigned idle = DEFAULTIDLEDELAY);
 
-    void checkSof                     (const unsigned idle = DEFAULTIDLEDELAY)
-    {
-        if (connected && keepalive)
-        {
-            // Get the current time in milliseconds
-            float currtimeMs = usbHostGetTimeUs() / (float)1000.0;
-
-
-
-            // If the frame number is less that the current time, send an SOF
-            if ((float)framenum < currtimeMs)
-            {
-                apiSendIdle(idle);
-
-                sendSofToDevice(usbModel::PID_TOKEN_SOF, (uint16_t)(framenum & 0x7ff));
-
-                // Schedule a new SOF at the next 1 ms boundary
-                framenum = (uint64_t)floor(currtimeMs) + 1;
-            }
-        }
-    }
+    void checkSof                     (const unsigned idle = DEFAULTIDLEDELAY);
+    bool checkConnected               (void);
 
     // -------------------------------------------------------------------------
     // Internal private state

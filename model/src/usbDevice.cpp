@@ -128,7 +128,7 @@ int usbDevice::waitForExpectedPacket(const int pktType, int &pid, uint32_t args[
     while (true)
     {
         // Wait for a packet
-        if ((status = apiWaitForPkt(nrzi)) == usbModel::USBRESET)
+        if ((status = apiWaitForPkt(nrzi, usbPliApi::IS_DEVICE)) == usbModel::USBRESET)
         {
             // If a reset seen, reset state and return
             reset();

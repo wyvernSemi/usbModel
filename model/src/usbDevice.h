@@ -46,16 +46,16 @@ private:
     //-------------------------------------------------------------
 
     static const int      PID_NO_CHECK             = usbModel::PID_INVALID;
-    static const int      DEFAULT_IDLE             = 3 * ONE_US;
-    
+    static const int      DEFAULT_IDLE             = 3;
+
     static const int      NUMIF0EPS                = 1;
     static const int      NUMIF1EPS                = 2;
     static const int      TOTALNUMEPS              = NUMIF0EPS + NUMIF1EPS;
     static const int      MAXNUMEPS                = 16;
-    
+
     static const uint8_t  REMOTE_WAKEUP_STATE      = usbModel::USB_REMOTE_WAKEUP_OFF;
     static const uint8_t  SELF_POWERED_STATE       = usbModel::USB_NOT_SELF_POWERED;
-    
+
 public:
 
     //-------------------------------------------------------------
@@ -84,57 +84,57 @@ public:
         strdesc[2].bLength += usbModel::fmtStrToUnicode(strdesc[2].bString, "usbModel");
         reset();
     };
-    
+
     //-------------------------------------------------------------
     // Get current time
     //-------------------------------------------------------------
-    
+
     float usbDeviceGetTimeUs()
     {
         unsigned ticks = apiGetClkCount();
 
-        return (float)ticks * 1.0/(float)ONE_US;
+        return (float)ticks * 1.0/(float)usbPliApi::ONE_US;
     }
-    
+
     //-------------------------------------------------------------
     // Device sleep method in microseconds
     //-------------------------------------------------------------
-    
+
     void usbDeviceSleepUs(const unsigned time_us)
     {
-        unsigned ticks = time_us * ONE_US;
-        
+        unsigned ticks = time_us * usbPliApi::ONE_US;
+
         apiSendIdle(ticks);
     }
 
     //-------------------------------------------------------------
     // Method to disconnect the device
     //-------------------------------------------------------------
-    
+
     void usbDeviceDisconnect()
     {
         apiDisablePullup();
     }
-    
+
     //-------------------------------------------------------------
     // Method to reconnect the device
     //-------------------------------------------------------------
-    
+
     void usbDeviceReconnect()
     {
         apiEnablePullup();
     }
-    
+
     //-------------------------------------------------------------
     // User entry method to start the USB device model
     //-------------------------------------------------------------
 
     int  usbDeviceRun (const int idle = DEFAULT_IDLE);
-    
+
     //-------------------------------------------------------------
     // End execution of the program
     //-------------------------------------------------------------
-    
+
     void usbDeviceEndExecution()
     {
         apiHaltSimulation();
@@ -145,7 +145,7 @@ private:
     //-------------------------------------------------------------
     // Configuration structure
     //-------------------------------------------------------------
-    
+
     class configAllDesc
     {
     public:
@@ -245,7 +245,7 @@ private:
     usbModel::deviceDesc   devdesc;
     usbModel::stringDesc   strdesc[3];
     cfgAllBuf              cfgalldesc;
-    
+
     uint16_t framenum;
 
 
