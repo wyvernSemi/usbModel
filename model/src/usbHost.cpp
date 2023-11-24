@@ -94,12 +94,13 @@ int usbHost::usbHostGetDeviceConfig (const uint8_t addr, const uint8_t endp, uin
         sendTokenToDevice(usbModel::PID_TOKEN_IN, addr, endp, idle);
 
         // Receive requested data
-        if (getDataFromDevice(usbModel::PID_DATA_1, rxdata, databytes, idle) != usbModel::USBOK)
+        if (getDataFromDevice(dataPid(endp), rxdata, databytes, idle) != usbModel::USBOK)
         {
             error = usbModel::USBERROR;
         }
         else
         {
+            dataPidUpdate(endp);
             cfgstate = rxdata[0];
         }
     }
@@ -110,18 +111,17 @@ int usbHost::usbHostGetDeviceConfig (const uint8_t addr, const uint8_t endp, uin
 // -------------------------------------------------------------------------
 // -------------------------------------------------------------------------
 
-int usbHost::usbHostGetStrDescriptor (const uint8_t  addr, const uint8_t  endp,
-                               const uint8_t  strindex,          uint8_t  data[],
-                               const uint16_t reqlen,            uint16_t       &rxlen,
-                               const bool     chklen,
-                               const uint16_t langid,
-                               const unsigned idle)
+int usbHost::usbHostGetStrDescriptor (const uint8_t  addr,     const uint8_t  endp,
+                                      const uint8_t  strindex, uint8_t  data[],
+                                      const uint16_t reqlen,   uint16_t       &rxlen,
+                                      const bool     chklen,
+                                      const uint16_t langid,
+                                      const unsigned idle)
 {
     int error = usbModel::USBOK;
 
     int      receivedbytes = 0;
     int      databytes;
-    int      pid           = usbModel::PID_DATA_1;
 
     // Send out the request
     if (sendStandardRequest(addr, endp,
@@ -142,16 +142,16 @@ int usbHost::usbHostGetStrDescriptor (const uint8_t  addr, const uint8_t  endp,
             sendTokenToDevice(usbModel::PID_TOKEN_IN, addr, endp, idle);
 
             // Receive requested data
-            if (getDataFromDevice(pid, &rxdata[receivedbytes], databytes, idle) != usbModel::USBOK)
+            if (getDataFromDevice(dataPid(endp), &rxdata[receivedbytes], databytes, idle) != usbModel::USBOK)
             {
                 error = usbModel::USBERROR;
             }
             else
             {
                 receivedbytes += databytes;
+                dataPidUpdate(endp);
             }
 
-            pid = (pid == usbModel::PID_DATA_1) ? usbModel::PID_DATA_0 : usbModel::PID_DATA_1;
 
         } while ((receivedbytes < reqlen && receivedbytes < ((usbModel::deviceDesc*)rxdata)->bLength));
 
@@ -188,8 +188,6 @@ int usbHost::usbHostGetDeviceDescriptor (const uint8_t  addr,   const uint8_t  e
     int      error         = usbModel::USBOK;
     int      receivedbytes = 0;
     int      databytes;
-    int      pid           = usbModel::PID_DATA_1;
-
 
     // Send out the request
     if (sendStandardRequest(addr, endp,
@@ -210,16 +208,15 @@ int usbHost::usbHostGetDeviceDescriptor (const uint8_t  addr,   const uint8_t  e
             sendTokenToDevice(usbModel::PID_TOKEN_IN, addr, endp, idle);
 
             // Receive requested data
-            if (getDataFromDevice(pid, &rxdata[receivedbytes], databytes, idle) != usbModel::USBOK)
+            if (getDataFromDevice(dataPid(endp), &rxdata[receivedbytes], databytes, idle) != usbModel::USBOK)
             {
                 error = usbModel::USBERROR;
             }
             else
             {
                 receivedbytes += databytes;
+                dataPidUpdate(endp);
             }
-
-            pid = (pid == usbModel::PID_DATA_1) ? usbModel::PID_DATA_0 : usbModel::PID_DATA_1;
 
         } while ((receivedbytes < reqlen && receivedbytes < ((usbModel::deviceDesc*)rxdata)->bLength));
 
@@ -241,14 +238,13 @@ int usbHost::usbHostGetDeviceDescriptor (const uint8_t  addr,   const uint8_t  e
 // -------------------------------------------------------------------------
 // -------------------------------------------------------------------------
 
-int usbHost::usbHostGetConfigDescriptor  (const  uint8_t  addr,   const uint8_t  endp,
-                                          uint8_t  data[], const uint16_t reqlen, uint16_t &rxlen,
-                                    const bool     chklen, const unsigned idle)
+int usbHost::usbHostGetConfigDescriptor  (const uint8_t  addr,   const uint8_t  endp,
+                                                uint8_t  data[], const uint16_t reqlen, uint16_t &rxlen,
+                                          const bool     chklen, const unsigned idle)
 {
     int      error         = usbModel::USBOK;
     int      receivedbytes = 0;
     int      databytes;
-    int      pid           = usbModel::PID_DATA_1;
 
     // Send out the request
     if (sendStandardRequest(addr, endp,
@@ -269,18 +265,18 @@ int usbHost::usbHostGetConfigDescriptor  (const  uint8_t  addr,   const uint8_t 
             sendTokenToDevice(usbModel::PID_TOKEN_IN, addr, endp, idle);
 
             // Receive requested data
-            if (getDataFromDevice(pid, &rxdata[receivedbytes], databytes, idle) != usbModel::USBOK)
+            if (getDataFromDevice(dataPid(endp), &rxdata[receivedbytes], databytes, idle) != usbModel::USBOK)
             {
                 error = usbModel::USBERROR;
+                fprintf(stderr, "==>***ERROR: %s\n", errbuf);
             }
             else
             {
                 receivedbytes += databytes;
+                dataPidUpdate(endp);
             }
-
-            pid = (pid == usbModel::PID_DATA_1) ? usbModel::PID_DATA_0 : usbModel::PID_DATA_1;
-
         } while ((receivedbytes < reqlen && receivedbytes < ((usbModel::configDesc*)rxdata)->wTotalLength));
+        
 
         if (chklen && receivedbytes != reqlen)
         {
@@ -423,13 +419,14 @@ int usbHost::usbHostGetInterface (const uint8_t  addr,      const uint8_t endp,
         sendTokenToDevice(usbModel::PID_TOKEN_IN, addr, endp, idle);
 
         // Receive requested data
-        if (getDataFromDevice(usbModel::PID_DATA_1, rxdata, databytes, idle) != usbModel::USBOK)
+        if (getDataFromDevice(dataPid(endp), rxdata, databytes, idle) != usbModel::USBOK)
         {
             error = usbModel::USBERROR;
         }
         else
         {
             altif = rxdata[0];
+            dataPidUpdate(endp);
         }
     }
 
@@ -520,13 +517,108 @@ int usbHost::usbHostGetEndpointSynchFrame (const uint8_t  addr,      const uint8
         sendTokenToDevice(usbModel::PID_TOKEN_IN, addr, endp, idle);
 
         // Receive requested data
-        if (getDataFromDevice(usbModel::PID_DATA_1, rxdata, databytes, idle) != usbModel::USBOK)
+        if (getDataFromDevice(dataPid(endp), rxdata, databytes, idle) != usbModel::USBOK)
         {
             error = usbModel::USBERROR;
         }
         else
         {
             framenum = (uint16_t)rxdata[0] | (((uint16_t)rxdata[1]) << 8);
+            dataPidUpdate(endp);
+        }
+    }
+
+    return error;
+}
+
+// -------------------------------------------------------------------------
+// -------------------------------------------------------------------------
+
+int usbHost::usbHostBulkDataOut (const uint8_t  addr,   const uint8_t  endp,
+                                       uint8_t  data[], const int      databytes,
+                                 const int      maxpktsize,
+                                 const unsigned idle)
+{
+    int                  error = usbModel::USBOK;
+    int                  pid;
+    uint32_t             args[4];
+    int                  datasize;
+    int                  numbytes;
+    int                  numnaks = 0;
+
+    int datasent       = 0;
+
+    while (true)
+    {
+        int remaining_data = databytes - datasent;
+
+        if (remaining_data > maxpktsize)
+        {
+            datasize = maxpktsize;
+        }
+        else
+        {
+            if (remaining_data > 0)
+            {
+                datasize  = remaining_data;
+            }
+            else
+            {
+                if (remaining_data == 0)
+                {
+                    break;
+                }
+            }
+        }
+
+        // Send the OUT token
+        sendTokenToDevice(usbModel::PID_TOKEN_OUT, addr, endp, idle);
+
+        // Send data
+        sendDataToDevice(dataPidUpdate(endp), &data[datasent], datasize, idle);
+
+
+        USBDEVDEBUG ("==> usbHostBulkDataOut: waiting for ACK/NAK token\n");
+
+        // Wait for acknowledge (either ACK or NAK)
+        if ((error = apiWaitForPkt(nrzi, usbPliApi::IS_HOST)) < 0)
+        {
+            USBERRMSG ("***ERROR: usbHostBulkDataOut: error waiting for ACK\n");
+            break;
+        }
+        else if ((error = usbPktDecode(nrzi, pid, args, data, numbytes)) != usbModel::USBOK)
+        {
+            usbPktGetErrMsg(sbuf);
+            USBERRMSG ("***ERROR: usbHostBulkDataOut: received bad packet waiting for data\n%s", sbuf);
+        }
+
+        // If ACK then end of transaction if no more bytes
+        if (pid == usbModel::PID_HSHK_ACK)
+        {
+            USBDEVDEBUG("==> usbHostBulkDataOut: seen ACK for DATAx\n");
+
+            datasent += datasize;
+
+            if ((databytes - datasent) == 0)
+            {
+                USBDEVDEBUG("==> usbHostBulkDataOut: remaining_data = %s\n", databytes - datasent);
+                break;
+            }
+        }
+        // Unexpected PID if not a NAK. NAK causes loop to send again, so no action.
+        else if (pid == usbModel::PID_HSHK_NAK)
+        {
+            numnaks++;
+
+            if (numnaks > MAXNAKS)
+            {
+                USBERRMSG ("sendInData: seen too many NAKs\n");
+                return usbModel::USBERROR;
+            }
+        }
+        else
+        {
+            return usbModel::USBERROR;
         }
     }
 
@@ -653,6 +745,9 @@ int usbHost::sendStandardRequest(const uint8_t  addr,    const uint8_t  endp,
 
     sendDataToDevice(usbModel::PID_DATA_0, (uint8_t*)&setup, sizeof(usbModel::setupRequest), idle);
 
+    // After sending a setup token and DAT0 packat, the next data pid will be PID_DATA_1
+    epdata0[epIdx(endp)][epDirIn(endp)] = false;
+
     do
     {
         // Wait for ACK
@@ -705,9 +800,10 @@ int usbHost::getStatus (const uint8_t addr, const uint8_t endp, const uint8_t ty
         sendTokenToDevice(usbModel::PID_TOKEN_IN, addr, endp, idle);
 
         // Receive requested data
-        if ((error = getDataFromDevice(usbModel::PID_DATA_1, rxdata, databytes, idle)) == usbModel::USBOK)
+        if ((error = getDataFromDevice(dataPid(endp), rxdata, databytes, idle)) == usbModel::USBOK)
         {
             status = (uint16_t)rxdata[0] | (((uint16_t)rxdata[1]) << 8);
+            dataPidUpdate(endp);
         }
     }
 
@@ -720,7 +816,7 @@ int usbHost::getStatus (const uint8_t addr, const uint8_t endp, const uint8_t ty
 bool usbHost::checkConnected()
 {
     unsigned line = apiReadLineState();
-    
+
     if (line == usbModel::USB_SE0 && connected)
     {
         connected = false;
@@ -730,8 +826,8 @@ bool usbHost::checkConnected()
     {
         connected = true;
         USBDISPPKT("  %s USB DEVICE CONNECTED (at cycle %d)\n", name.c_str(), apiGetClkCount());
-    }    
-    
+    }
+
     return connected;
 }
 
@@ -757,7 +853,6 @@ void usbHost::checkSof (const unsigned idle)
         }
     }
 }
-
 
 
 

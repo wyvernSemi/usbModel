@@ -32,7 +32,7 @@
 
 static int node = 0;
 
-static uint8_t rxdata     [usbModel::MAXBUFSIZE];
+static uint8_t databuf     [usbModel::MAXBUFSIZE];
 static char    scratchbuf [usbModel::ERRBUFSIZE];
 
 //-------------------------------------------------------------
@@ -49,6 +49,8 @@ extern "C" void VUserMain0()
     uint8_t              addr;
     uint8_t              endp;
     uint16_t             rxlen;
+    
+    usbModel::deviceDesc devdesc;
 
     // Create host interface object to usbModel
     usbHost host(node);
@@ -76,10 +78,13 @@ extern "C" void VUserMain0()
     else
     {
         // Get the device descriptor
-        host.usbHostGetDeviceDescriptor (usbModel::CONTROL_ADDR, usbModel::CONTROL_EP, rxdata, 0x00FF, rxlen, false);
+        host.usbHostGetDeviceDescriptor (usbModel::CONTROL_ADDR, usbModel::CONTROL_EP, databuf, 0x00FF, rxlen, false);
 
-        usbModel::fmtDevDescriptor(scratchbuf, rxdata);
+        usbModel::fmtDevDescriptor(scratchbuf, databuf);
         USBDISPPKT ("\nVUserMain0: received device descriptor\n\n%s", scratchbuf);
+        
+        // Save off the descriptor
+        devdesc = *((usbModel::deviceDesc*)databuf);
 
         // Set the device address to 1
         addr = 1;
@@ -91,42 +96,42 @@ extern "C" void VUserMain0()
         // Get the configuration descriptor. Device will want to return all descriptors under
         // the config descriptor, so just ask for the number of bytes required for the
         // first descriptor (the config)
-        host.usbHostGetConfigDescriptor(addr, endp, rxdata, sizeof(usbModel::configDesc), rxlen, false);
+        host.usbHostGetConfigDescriptor(addr, endp, databuf, sizeof(usbModel::configDesc), rxlen, false);
 
-        usbModel::fmtCfgDescriptor(scratchbuf, rxdata);
+        usbModel::fmtCfgDescriptor(scratchbuf, databuf);
         USBDISPPKT ("\nVUserMain0: received config descriptor\n\n%s\n", scratchbuf);
 
         // Extract the total length of the combined descriptors
-        usbModel::configDesc *pCfgDesc = (usbModel::configDesc *)rxdata;
+        usbModel::configDesc *pCfgDesc = (usbModel::configDesc *)databuf;
         uint16_t wTotalLength = pCfgDesc-> wTotalLength;
 
         // Now request the lot
-        host.usbHostGetConfigDescriptor(addr, endp, rxdata, wTotalLength, rxlen, false);
+        host.usbHostGetConfigDescriptor(addr, endp, databuf, wTotalLength, rxlen, false);
 
-        usbModel::fmtCfgAllDescriptor(scratchbuf, rxdata);
+        usbModel::fmtCfgAllDescriptor(scratchbuf, databuf);
         USBDISPPKT ("\nVUserMain0: received config descriptor\n\n%s", scratchbuf);
 
         // Get string descriptor 0
-        host.usbHostGetStrDescriptor(addr, endp, 0, rxdata, 0xff, rxlen, false);
+        host.usbHostGetStrDescriptor(addr, endp, 0, databuf, 0xff, rxlen, false);
 
         USBDISPPKT ("\nVUserMain0: received string descriptor index 0\n");
         for (int idx = 0; idx < (rxlen-2)/2; idx++)
         {
-            USBDISPPKT ("  wLANGID[%d] = 0x%04x\n", idx, ((uint16_t*)&rxdata[2])[idx]);
+            USBDISPPKT ("  wLANGID[%d] = 0x%04x\n", idx, ((uint16_t*)&databuf[2])[idx]);
         }
         USBDISPPKT ("\n");
 
         // Get string descriptor 1
-        host.usbHostGetStrDescriptor(addr, endp, 1, rxdata, 0xff, rxlen, false);
+        host.usbHostGetStrDescriptor(addr, endp, 1, databuf, 0xff, rxlen, false);
 
         USBDISPPKT ("\nVUserMain0: received string descriptor index 1\n");
-        USBDISPPKT ("  \"%s\"\n\n", &rxdata);
+        USBDISPPKT ("  \"%s\"\n\n", &databuf);
 
         // Get string descriptor 2
-        host.usbHostGetStrDescriptor(addr, endp, 2, rxdata, 0xff, rxlen, false);
+        host.usbHostGetStrDescriptor(addr, endp, 2, databuf, 0xff, rxlen, false);
 
         USBDISPPKT ("\nVUserMain0: received string descriptor index 2\n");
-        USBDISPPKT ("  \"%s\"\n\n", &rxdata);
+        USBDISPPKT ("  \"%s\"\n\n", &databuf);
 
         // Get the device status
         host.usbHostGetDeviceStatus(addr, endp, status);
@@ -187,11 +192,19 @@ extern "C" void VUserMain0()
         host.usbHostGetEndpointSynchFrame(addr, endp, status);
         
         USBDISPPKT ("\nVUserMain0: received endpoint synch frame of 0x%04x\n\n", status);
+        
+        // Send some data
+        endp = 1;
+        for (int idx = 0; idx < 56; idx++)
+        {
+            databuf[idx] = idx;
+        }
+        host.usbHostBulkDataOut(addr, endp, databuf, 56, devdesc.bMaxPacketSize);
 
     }
 
-    // Wait a bit before halting to let the device receive the ACK
-    host.usbHostSleepUs(10);
+    // Wait a bit before halting to let the device receive any last ACK
+    host.usbHostSleepUs(100);
 
     // Halt the simulation
     host.usbHostEndExecution();

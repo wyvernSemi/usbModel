@@ -88,6 +88,7 @@ namespace usbModel
     static const int      USBRESET                 = -3;
     static const int      USBSUSPEND               = -4;
     static const int      USBDISCONNECTED          = -5;
+    static const int      USBNORESPONSE            = -6;
     static const int      ERRBUFSIZE               = 8192;
     static const int      MAXBUFSIZE               = 2048;
 
@@ -170,6 +171,10 @@ namespace usbModel
     
     static const uint16_t LANGID_ENG_UK            = 0x0809;
     static const uint16_t LANGID_ENG_US            = 0x0409;
+    
+    static const int      NOTIMEOUT                = 0;
+    
+    static const int      MAXENDPOINTS             = 16;
 
 // As these descriptor structures will used to form a single
 // super-configuration structure, padding beyond bytes must be disabled

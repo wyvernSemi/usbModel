@@ -34,6 +34,19 @@ class usbDevice : public usbPliApi, public usbPkt
 public:
 
     //-------------------------------------------------------------
+    // Public type definitions
+    //-------------------------------------------------------------
+
+    enum dataResponseType_e
+    {
+        ACK,
+        NAK,
+        STALL
+    };
+
+    typedef dataResponseType_e (*usbDeviceDataCallback_t) (const uint8_t endp, uint8_t* data, int &numbytes);
+
+    //-------------------------------------------------------------
     // Public constant definitions
     //-------------------------------------------------------------
 
@@ -46,15 +59,16 @@ private:
     //-------------------------------------------------------------
 
     static const int      PID_NO_CHECK             = usbModel::PID_INVALID;
-    static const int      DEFAULT_IDLE             = 3;
+    static const int      DEFAULT_IDLE             = 4;
 
     static const int      NUMIF0EPS                = 1;
     static const int      NUMIF1EPS                = 2;
     static const int      TOTALNUMEPS              = NUMIF0EPS + NUMIF1EPS;
-    static const int      MAXNUMEPS                = 16;
 
     static const uint8_t  REMOTE_WAKEUP_STATE      = usbModel::USB_REMOTE_WAKEUP_OFF;
     static const uint8_t  SELF_POWERED_STATE       = usbModel::USB_NOT_SELF_POWERED;
+    
+    static const int      MAXNAKS                  = 3;
 
 public:
 
@@ -62,7 +76,7 @@ public:
     // Constructor
     //-------------------------------------------------------------
 
-    usbDevice (int nodeIn, std::string name = std::string(FMT_DEVICE "DEV " FMT_NORMAL)) :
+    usbDevice (int nodeIn, usbDeviceDataCallback_t dataCallback = NULL, std::string name = std::string(FMT_DEVICE "DEV " FMT_NORMAL)) :
         usbPliApi(nodeIn, name),
         usbPkt(name),
         deviceConfigured(false),
@@ -71,7 +85,9 @@ public:
                 {false, false}, {false, false}, {false, false}, {false, false},
                 {false, true},  {false, false}, {false, false}, {false, false},
                 {false, false}, {false, false}, {false, false}, {false, false}},
-        framenum(0)
+        epdata0{{true}},
+        framenum(0),
+        datacb(dataCallback)
     {
         strdesc[0].bLength    = 6; // bLength + bDescriptorType bytes plus two wLANGID entries (2 bytes each)
         strdesc[0].bString[0] = usbModel::LANGID_ENG_UK; // English UK
@@ -189,10 +205,14 @@ private:
         devaddr   = usbModel::USB_NO_ASSIGNED_ADDR;
     }
 
-    int          sendGetResp           (const usbModel::setupRequest* sreq,
+    int         sendGetResp            (const usbModel::setupRequest* sreq,
                                         const uint8_t data[], const int databytes,
-                                        const char* fmtstr,
-                                        const int idle = DEFAULT_IDLE);
+                                        const uint8_t endp,   const char* fmtstr,
+                                        const int     idle = DEFAULT_IDLE);
+
+    int         sendInData             (const uint8_t data[], const int  databytes,
+                                        const uint8_t endp,         bool skipfirstIN = false,
+                                        const int     idle = DEFAULT_IDLE);
 
     //-------------------------------------------------------------
     // Methods for sending packets back towards the host
@@ -207,44 +227,67 @@ private:
     // Method to wait for the receipt of a particular packet type
     //-------------------------------------------------------------
 
-    int          waitForExpectedPacket (const int pktType, int &pid, uint32_t args[], uint8_t data[], int databytes, bool ignorebadpkts = true);
+    int          waitForExpectedPacket (const int  pktType, int &pid, uint32_t* args, uint8_t* data, int &databytes,
+                                        const bool ignorebadpkts = true, const int timeout = usbModel::NOTIMEOUT);
 
     //-------------------------------------------------------------
     // Methods for processing different packet types
     //-------------------------------------------------------------
 
-    int          processControl        (const uint32_t addr,   const uint32_t endp,   const int idle = DEFAULT_IDLE);
-    int          processIn             (const uint32_t args[], const uint8_t  data[], const int databytes, const int idle = DEFAULT_IDLE);
-    int          processOut            (const uint32_t args[],       uint8_t  data[], const int databytes, const int idle = DEFAULT_IDLE);
+    int          processControl        (const uint32_t addr,   const uint32_t endp,       const int idle = DEFAULT_IDLE);
+    int          processIn             (const uint32_t args[],       int      &databytes, const int idle = DEFAULT_IDLE);
+    int          processOut            (const uint32_t args[],       uint8_t  data[],     const int databytes, const int idle = DEFAULT_IDLE);
     int          processSOF            (const uint32_t args[], const int      idle = DEFAULT_IDLE);
 
     //-------------------------------------------------------------
     // Methods for handling requests
     //-------------------------------------------------------------
 
-    int          handleDevReq          (const usbModel::setupRequest* sreq, const int idle = DEFAULT_IDLE);
-    int          handleIfReq           (const usbModel::setupRequest* sreq, const int idle = DEFAULT_IDLE);
-    int          handleEpReq           (const usbModel::setupRequest* sreq, const int idle = DEFAULT_IDLE);
+    int          handleDevReq          (const usbModel::setupRequest* sreq, const uint8_t endp, const int idle = DEFAULT_IDLE);
+    int          handleIfReq           (const usbModel::setupRequest* sreq, const uint8_t endp, const int idle = DEFAULT_IDLE);
+    int          handleEpReq           (const usbModel::setupRequest* sreq, const uint8_t endp, const int idle = DEFAULT_IDLE);
+    
+    //-------------------------------------------------------------
+    // Methods for handling endpoint data0/1
+    //-------------------------------------------------------------
+    
+    inline int  epIdx                 (const int endp) {return endp & 0xf;};
+    inline bool epDirIn               (const int endp) {return (endp >> 7) & 1;};
+    inline int  dataPid               (const int endp) {return epdata0[epIdx(endp)][epDirIn(endp)] ? usbModel::PID_DATA_0 : usbModel::PID_DATA_1;};
+    inline int  dataPidUpdate         (const int endp, const bool iso = false)
+    {
+        int dpid = dataPid(endp);
+        if (!iso)
+        {
+            epdata0[epIdx(endp)][epDirIn(endp)] = !epdata0[epIdx(endp)][epDirIn(endp)];
+        }
+        
+        return dpid;
+    }
 
     //-------------------------------------------------------------
     // Internal device state
     //-------------------------------------------------------------
 
     // Assigned device address
-    int                    devaddr;
-    bool                   deviceConfigured;
-    bool                   ephalted[MAXNUMEPS][2];
-    bool                   epvalid[MAXNUMEPS][2];
-
+    int                     devaddr;
+    bool                    deviceConfigured;
+    bool                    ephalted[usbModel::MAXENDPOINTS][2];
+    bool                    epvalid[usbModel::MAXENDPOINTS][2];
+    bool                    epdata0[usbModel::MAXENDPOINTS][2];
+                            
     // Internal buffers for use by class methods
-    uint8_t                rxdata [usbModel::MAXBUFSIZE];
-    usbModel::usb_signal_t nrzi   [usbModel::MAXBUFSIZE];
-    char                   sbuf   [usbModel::ERRBUFSIZE];
-
-    // Device's descriptors
-    usbModel::deviceDesc   devdesc;
-    usbModel::stringDesc   strdesc[3];
-    cfgAllBuf              cfgalldesc;
+    uint8_t                 rxdata [usbModel::MAXBUFSIZE];
+    usbModel::usb_signal_t  nrzi   [usbModel::MAXBUFSIZE];
+    char                    sbuf   [usbModel::ERRBUFSIZE];
+                            
+    // Device's descriptors 
+    usbModel::deviceDesc    devdesc;
+    usbModel::stringDesc    strdesc[3];
+    cfgAllBuf               cfgalldesc;
+    
+    // Data callback function pointer
+    usbDeviceDataCallback_t datacb;
 
     uint16_t framenum;
 

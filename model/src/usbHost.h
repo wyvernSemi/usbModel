@@ -37,7 +37,9 @@ class usbHost : public usbPliApi, public usbPkt
 {
 public:
 
-    static const int  DEFAULTIDLEDELAY = 4; // 0.33us at 12MHz
+    static const int      PID_NO_CHECK             = usbModel::PID_INVALID;
+    static const int      DEFAULTIDLEDELAY         = 4; // 0.33us at 12MHz
+    static const int      MAXNAKS                  = 3;
 
     // -------------------------------------------------------------------------
     // Constructor
@@ -48,7 +50,8 @@ public:
         usbPkt(name),
         connected(false),
         keepalive(true),
-        framenum(0)
+        framenum(0),
+        epdata0{{true}}
     {
     }
 
@@ -185,13 +188,20 @@ public:
                                              uint16_t &framenum,
                                        const unsigned idle = DEFAULTIDLEDELAY);
 
+    // Data transfer methods
+
+    int  usbHostBulkDataOut           (const uint8_t  addr,      const uint8_t  endp,
+                                             uint8_t  data[],    const int      len, const int maxpktsize,
+                                       const unsigned idle = DEFAULTIDLEDELAY);
+
     // -------------------------------------------------------------------------
     // Private methods
     // -------------------------------------------------------------------------
+
 private:
     void sendTokenToDevice            (const int      pid,        const uint8_t  addr,    const uint8_t  endp,
                                        const unsigned idle = DEFAULTIDLEDELAY);
-    
+
     void sendSofToDevice              (const int      pid,       const uint16_t framenum,
                                        const unsigned idle = DEFAULTIDLEDELAY);
 
@@ -215,6 +225,20 @@ private:
 
     void checkSof                     (const unsigned idle = DEFAULTIDLEDELAY);
     bool checkConnected               (void);
+    
+    inline int  epIdx                 (const int endp) {return endp & 0xf;};
+    inline bool epDirIn               (const int endp) {return (endp >> 7) & 1;};
+    inline int  dataPid               (const int endp) {return epdata0[epIdx(endp)][epDirIn(endp)] ? usbModel::PID_DATA_0 : usbModel::PID_DATA_1;};
+    inline int  dataPidUpdate         (const int endp, const bool iso = false)
+    {
+        int dpid = dataPid(endp);
+        if (!iso)
+        {
+            epdata0[epIdx(endp)][epDirIn(endp)] = !epdata0[epIdx(endp)][epDirIn(endp)];
+        }
+        
+        return dpid;
+    }
 
     // -------------------------------------------------------------------------
     // Internal private state
@@ -225,10 +249,11 @@ private:
     uint8_t                rxdata [usbModel::MAXBUFSIZE];
     char                   sbuf   [usbModel::ERRBUFSIZE];
 
-    // Flag to keep connected device alive (send SOFs)
     bool                   connected;
     bool                   keepalive;
     uint64_t               framenum;
+    
+    bool                   epdata0[usbModel::MAXENDPOINTS][2];
 
 };
 

@@ -645,7 +645,7 @@ int usbPkt::usbPktDecode(const usbModel::usb_signal_t nrzibuf[], int& pid, uint3
     // Check PID inverse is in top bits
     if (pid != pidchk)
     {
-        USBERRMSG("decodePkt: Invalid PID. Top nibble is not the inverse of bottom nibble (%d).\n", rawbuf[usbModel::PIDBYTEOFFSET].dp);
+        USBERRMSG("decodePkt: Invalid PID. Top nibble is not the inverse of bottom nibble (0x%02x).\n", rawbuf[usbModel::PIDBYTEOFFSET].dp);
         return usbModel::USBERROR;
     }
 

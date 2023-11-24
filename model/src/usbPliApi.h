@@ -279,11 +279,21 @@ protected:
     // NRZI data into the provided buffer, returning the bit count
     // of the extracted packet. Will also detect a reset state on
     // the line (continuous SE0s for a minimum period), and flag to
-    // the calling code.
+    // the calling code. Will detect suspension (idle for a minimum
+    // period) and will timeout if a period specified (time > 0).
+    // The method also monitors for disconnction (SE0 when idle).
+    //
+    // The possible return values are:
+    //
+    //   A bit count (return integer >= 0)
+    //   usbModel::DISCONNECTED
+    //   usbModel::USBRESET
+    //   usbModel::USBSUSPEND
+    //   usbModel::USBNORESPONSE
     //
     //-------------------------------------------------------------
 
-    int apiWaitForPkt(usbModel::usb_signal_t nrzi[], const bool isDevice = true)
+    int apiWaitForPkt(usbModel::usb_signal_t nrzi[], const bool isDevice = true, const unsigned timeout = 0)
     {
         unsigned     line;
         bool         idle         = true;
@@ -389,12 +399,19 @@ protected:
             }
             else
             {
-                if (isDevice && ++idlecount >= MINSUSPENDCOUNT)
+                idlecount++;
+                if (isDevice && idlecount >= MINSUSPENDCOUNT)
                 {
                     USBDISPPKT("Device suspended\n");
                     suspended = true;
                     return usbModel::USBSUSPEND;
                 }
+                
+                if (timeout != usbModel::NOTIMEOUT && idlecount >= timeout)
+                {
+                    return usbModel::USBNORESPONSE;
+                }
+                
             }
         } while (true);
 
