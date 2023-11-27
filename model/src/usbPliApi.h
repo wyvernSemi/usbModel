@@ -44,7 +44,7 @@ public:
     static const int ONE_MS          = ONE_US * 1000;
 
     static const int IS_HOST         = false;
-    static const int IS_DEVICE       = false;
+    static const int IS_DEVICE       = true;
 
 private:
 
@@ -305,6 +305,8 @@ protected:
 
         // Disable outputs
         VWrite(OUTEN, 0, DELTA_CYCLE, node);
+        
+        USBDEVDEBUG ("%s apiWaitForPkt: isDevice=%d\n", isDevice ? "<==" : "==>", isDevice);
 
         do {
             // Get status on USB line
@@ -355,7 +357,6 @@ protected:
 
                     if (rstcount >= MINRSTCOUNT)
                     {
-                        USBDISPPKT("Device reset\n");
                         return usbModel::USBRESET;
                     }
 
@@ -402,7 +403,6 @@ protected:
                 idlecount++;
                 if (isDevice && idlecount >= MINSUSPENDCOUNT)
                 {
-                    USBDISPPKT("Device suspended\n");
                     suspended = true;
                     return usbModel::USBSUSPEND;
                 }

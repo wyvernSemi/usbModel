@@ -189,9 +189,12 @@ public:
                                        const unsigned idle = DEFAULTIDLEDELAY);
 
     // Data transfer methods
-
     int  usbHostBulkDataOut           (const uint8_t  addr,      const uint8_t  endp,
                                              uint8_t  data[],    const int      len, const int maxpktsize,
+                                       const unsigned idle = DEFAULTIDLEDELAY);
+
+    int  usbHostBulkDataIn            (const uint8_t  addr,      const uint8_t  endp,
+                                             uint8_t* data,      const int      len, const int maxpktsize,
                                        const unsigned idle = DEFAULTIDLEDELAY);
 
     // -------------------------------------------------------------------------
@@ -225,7 +228,7 @@ private:
 
     void checkSof                     (const unsigned idle = DEFAULTIDLEDELAY);
     bool checkConnected               (void);
-    
+
     inline int  epIdx                 (const int endp) {return endp & 0xf;};
     inline bool epDirIn               (const int endp) {return (endp >> 7) & 1;};
     inline int  dataPid               (const int endp) {return epdata0[epIdx(endp)][epDirIn(endp)] ? usbModel::PID_DATA_0 : usbModel::PID_DATA_1;};
@@ -236,7 +239,7 @@ private:
         {
             epdata0[epIdx(endp)][epDirIn(endp)] = !epdata0[epIdx(endp)][epDirIn(endp)];
         }
-        
+
         return dpid;
     }
 
@@ -252,7 +255,7 @@ private:
     bool                   connected;
     bool                   keepalive;
     uint64_t               framenum;
-    
+
     bool                   epdata0[usbModel::MAXENDPOINTS][2];
 
 };

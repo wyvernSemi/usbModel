@@ -59,6 +59,7 @@ int usbDevice::usbDeviceRun(const int idle)
         }
         else
         {
+            USBDEVDEBUG("==> usbDeviceRun: recived TOKEN (pid=0x%02x)\n", pid);
             // Process initiating packet types
             switch(pid)
             {
@@ -128,25 +129,30 @@ int usbDevice::waitForExpectedPacket(const int pktType, int &pid, uint32_t* args
     int status;
     int numbits;
 
-    USBDEVDEBUG ( "==> waitForExpectedPacket: waiting for a packet (0x%02x)\n", pktType);
+    USBDEVDEBUG ( "<== waitForExpectedPacket: waiting for a packet (0x%02x)\n", pktType);
 
     while (true)
     {
         // Wait for a packet
         if ((status = apiWaitForPkt(nrzi, usbPliApi::IS_DEVICE)) == usbModel::USBRESET)
         {
-            // If a reset seen, reset state and return
+            USBDISPPKT ( "  %s SEEN RESET\n", name.c_str());
+            
+            // If a reset seen, reset state
             reset();
-            break;
+            continue;
         }
         else if (status == usbModel::USBSUSPEND)
         {
-            break;
+            USBDISPPKT ( "  %s SEEN SUSPEND\n", name.c_str());
+            continue;
         }
+        
+        USBDEVDEBUG ( "<== waitForExpectedPacket: received packet\n");
 
         if (usbPktDecode(nrzi, pid, args, data, databytes) != usbModel::USBOK)
         {
-            USBDEVDEBUG ( "==> waitForExpectedPacket: seen bad packet\n%s    ", errbuf);
+            USBDEVDEBUG ( "<== waitForExpectedPacket: seen bad packet\n%s    ", errbuf);
             for(int i = 0; i < databytes; i++)
                 USBDEVDEBUG("%02x ", data[i]);
             USBDEVDEBUG("\n");
@@ -168,7 +174,7 @@ int usbDevice::waitForExpectedPacket(const int pktType, int &pid, uint32_t* args
     }
 
     // Check packet is as expected
-    if (pktType != PID_NO_CHECK && pid != pktType)
+    if (status == usbModel::USBOK && pktType != PID_NO_CHECK && pid != pktType)
     {
         // Generate a STALL handshake for the error
         sendPktToHost(usbModel::PID_HSHK_STALL, DEFAULT_IDLE);
@@ -322,7 +328,7 @@ int usbDevice::processControl(const uint32_t addr, const uint32_t endp, const in
     uint32_t             args[4];
     int                  databytes;
 
-    USBDEVDEBUG ( "==> processControl (addr = 0x%02x, endp = 0x%02x)\n", addr, endp);
+    USBDEVDEBUG ( "<== processControl (addr = 0x%02x, endp = 0x%02x)\n", addr, endp);
 
     // Check Address/endp is 0/0 or a previously set address and a valid endpoint
     if (!((addr == 0 && endp == 0) || (addr == devaddr && epvalid[epIdx(endp)][epDirIn(endp)])))
@@ -351,7 +357,7 @@ int usbDevice::processControl(const uint32_t addr, const uint32_t endp, const in
         // Map received data over the expected request type
         usbModel::setupRequest* sreq = (usbModel::setupRequest*)rxdata;
 
-        USBDEVDEBUG ( "==> received device request (0x%x)\n", sreq->bmRequestType);
+        USBDEVDEBUG ( "<== received device request (0x%x)\n", sreq->bmRequestType);
 
         // A decode request (device, interface, endpoint)
         switch(sreq->bmRequestType)
@@ -401,7 +407,7 @@ int usbDevice::handleDevReq(const usbModel::setupRequest* sreq, const uint8_t en
     uint8_t              desctype;
     uint8_t              descidx;
 
-    USBDEVDEBUG ( "==> handleDevReq (bRequest=0x%x wValue=0x%04x wLength=0x%04x)\n", sreq->bRequest, sreq->wValue, sreq->wLength);
+    USBDEVDEBUG ( "<== handleDevReq (bRequest=0x%x wValue=0x%04x wLength=0x%04x)\n", sreq->bRequest, sreq->wValue, sreq->wLength);
 
     switch(sreq->bRequest)
     {
@@ -803,7 +809,7 @@ int usbDevice::sendGetResp (const usbModel::setupRequest* sreq, const uint8_t da
 
     int datasent       = 0;
 
-    USBDEVDEBUG("==> sendGetResp: databytes=%d\n", databytes);
+    USBDEVDEBUG("<== sendGetResp: databytes=%d\n", databytes);
 
     // Check request type is a "device get" type
     if (sreq->bmRequestType != usbModel::USB_DEV_REQTYPE_GET &&
@@ -860,7 +866,7 @@ int usbDevice::sendInData(const uint8_t data[], const int databytes, const uint8
             }
         }
 
-        USBDEVDEBUG ("==> sendInData: waiting for IN token\n");
+        USBDEVDEBUG ("<== sendInData: waiting for IN token\n");
 
         // Wait for an IN token (unless skipping on first iteration as one already received)
         if (!skipfirstIN || datasent)
@@ -874,7 +880,7 @@ int usbDevice::sendInData(const uint8_t data[], const int databytes, const uint8
         // Send DATAx packet
         sendPktToHost(dataPid(endp), &data[datasent], datasize, idle);
 
-        USBDEVDEBUG ("==> sendInData: waiting for ACK/NAK token\n");
+        USBDEVDEBUG ("<== sendInData: waiting for ACK/NAK token\n");
 
         // Wait for acknowledge (either ACK or NAK)
         if (waitForExpectedPacket(PID_NO_CHECK, pid, args, rxdata, numbytes) != usbModel::USBOK)
@@ -886,7 +892,7 @@ int usbDevice::sendInData(const uint8_t data[], const int databytes, const uint8
         // If ACK then end of transaction if no more bytes
         if (pid == usbModel::PID_HSHK_ACK)
         {
-            USBDEVDEBUG("==> sendInData: seen ACK for DATAx\n");
+            USBDEVDEBUG("<== sendInData: seen ACK for DATAx\n");
 
             dataPidUpdate(endp);
 
@@ -894,7 +900,7 @@ int usbDevice::sendInData(const uint8_t data[], const int databytes, const uint8
 
             if ((databytes - datasent) == 0)
             {
-                USBDEVDEBUG("==> sendInData: remaining_data = %s\n", databytes - datasent);
+                USBDEVDEBUG("<== sendInData: remaining_data = %d\n", databytes - datasent);
                 break;
             }
         }
@@ -927,15 +933,15 @@ int usbDevice::processIn (const uint32_t args[], int &databytes, const int idle)
     int                error  = usbModel::USBOK;
 
     uint8_t            addr   = args[usbModel::ARGADDRIDX];
-    uint8_t            endp   = args[usbModel::ARGENDPIDX];
+    uint8_t            endp   = args[usbModel::ARGENDPIDX] | usbModel::DIRTOHOST;
     int                numbytes;
 
     dataResponseType_e cbresp = usbDevice::ACK;
 
-    USBDEVDEBUG ( "==> processIn (addr = 0x%02x, endp = 0x%02x)\n", addr, endp);
+    USBDEVDEBUG ( "<== processIn (addr = 0x%02x, endp = 0x%02x)\n", addr, endp);
 
     // Check Address is a previously set address and a valid endpoint
-    if (!(addr == devaddr && epvalid[endp & 0xf][(endp >> 7) & 1]))
+    if (!(addr == devaddr && epvalid[epIdx(endp)][epDirIn(endp)]))
     {
         // Generate a STALL handshake for the error
         sendPktToHost(usbModel::PID_HSHK_STALL);
@@ -948,12 +954,12 @@ int usbDevice::processIn (const uint32_t args[], int &databytes, const int idle)
         // If a data callback is set, fetch the data from this function
         if (datacb != NULL)
         {
-            cbresp = datacb((const uint8_t)args[usbModel::ARGENDPIDX], rxdata, numbytes);
+            cbresp = datacb(endp, rxdata, numbytes);
         }
 
         if (cbresp == usbDevice::STALL)
         {
-            ephalted[endp & 0xf][(endp >> 7) & 1] = true;
+            ephalted[epIdx(endp)][epDirIn(endp)] = true;
             sendPktToHost(usbModel::PID_HSHK_STALL);
             error = usbModel::USBERROR;
         }
@@ -992,7 +998,7 @@ int usbDevice::processOut (const uint32_t args[], uint8_t data[], int databytes,
 
     dataResponseType_e   cbresp = usbDevice::ACK;
 
-    USBDEVDEBUG ( "==> processOut (addr = 0x%02x, endp = 0x%02x)\n", addr, endp);
+    USBDEVDEBUG ( "<== processOut (addr = 0x%02x, endp = 0x%02x)\n", addr, endp);
 
     // Check Address is a previously set address and a valid endpoint
     if (!(addr == devaddr && epvalid[epidx][epdir] && !ephalted[epidx][epdir]))

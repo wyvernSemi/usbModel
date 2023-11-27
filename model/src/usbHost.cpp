@@ -276,7 +276,7 @@ int usbHost::usbHostGetConfigDescriptor  (const uint8_t  addr,   const uint8_t  
                 dataPidUpdate(endp);
             }
         } while ((receivedbytes < reqlen && receivedbytes < ((usbModel::configDesc*)rxdata)->wTotalLength));
-        
+
 
         if (chklen && receivedbytes != reqlen)
         {
@@ -545,12 +545,13 @@ int usbHost::usbHostBulkDataOut (const uint8_t  addr,   const uint8_t  endp,
     int                  datasize;
     int                  numbytes;
     int                  numnaks = 0;
+    int                  remaining_data;
 
     int datasent       = 0;
 
     while (true)
     {
-        int remaining_data = databytes - datasent;
+        remaining_data = databytes - datasent;
 
         if (remaining_data > maxpktsize)
         {
@@ -601,10 +602,11 @@ int usbHost::usbHostBulkDataOut (const uint8_t  addr,   const uint8_t  endp,
 
             if ((databytes - datasent) == 0)
             {
-                USBDEVDEBUG("==> usbHostBulkDataOut: remaining_data = %s\n", databytes - datasent);
+                USBDEVDEBUG("==> usbHostBulkDataOut: remaining_data = %d\n", databytes - datasent);
                 break;
             }
         }
+        
         // Unexpected PID if not a NAK. NAK causes loop to send again, so no action.
         else if (pid == usbModel::PID_HSHK_NAK)
         {
@@ -612,13 +614,71 @@ int usbHost::usbHostBulkDataOut (const uint8_t  addr,   const uint8_t  endp,
 
             if (numnaks > MAXNAKS)
             {
-                USBERRMSG ("sendInData: seen too many NAKs\n");
+                USBERRMSG ("usbHostBulkDataOut: seen too many NAKs\n");
                 return usbModel::USBERROR;
             }
         }
         else
         {
             return usbModel::USBERROR;
+        }
+    }
+
+    return error;
+}
+
+// -------------------------------------------------------------------------
+// -------------------------------------------------------------------------
+
+int usbHost::usbHostBulkDataIn (const uint8_t  addr,      const uint8_t  endp,
+                                      uint8_t* data,      const int      reqlen, const int maxpktsize,
+                                const unsigned idle)
+{
+    int                  error = usbModel::USBOK;
+    int                  rxbytes;
+    int                  datasize;
+    int                  receivedbytes = 0;
+
+    while (true)
+    {
+        int remaining_data = reqlen - receivedbytes;
+        
+        USBDEVDEBUG("==> usbHostBulkDataIn: remaining_data = %d\n", remaining_data);
+
+        if (remaining_data > maxpktsize)
+        {
+            datasize = maxpktsize;
+        }
+        else
+        {
+            if (remaining_data > 0)
+            {
+                datasize  = remaining_data;
+            }
+            else
+            {
+                if (remaining_data <= 0)
+                {
+                    break;
+                }
+            }
+        }
+
+        // Send IN token
+        sendTokenToDevice(usbModel::PID_TOKEN_IN, addr, endp, idle);
+        
+        USBDEVDEBUG("==> usbHostBulkDataIn: sent IN token to addr=%d endp=0x%02x\n", addr, endp);
+
+
+        // Receive requested data
+        if (getDataFromDevice(dataPid(endp), &data[receivedbytes], rxbytes, idle) != usbModel::USBOK)
+        {
+            error = usbModel::USBERROR;
+        }
+        else
+        {
+            receivedbytes += rxbytes;
+            dataPidUpdate(endp);
         }
     }
 
@@ -635,8 +695,13 @@ int usbHost::usbHostBulkDataOut (const uint8_t  addr,   const uint8_t  endp,
 void usbHost::sendTokenToDevice (const int pid, const uint8_t addr, const uint8_t endp, const unsigned idle)
 {
     int numbits = usbPktGen(nrzi, pid, addr, endp);
+    
+    USBDEVDEBUG("==> sendTokenToDevice: pid=0x%02x addr=%d endp=0x%02x numbits=%d\n", pid, addr, endp, numbits);
 
-    apiSendPacket(nrzi, numbits, idle);
+    if (numbits >= usbModel::MINPKTSIZEBITS)
+    {        
+        apiSendPacket(nrzi, numbits, idle);
+    }
 }
 
 // -------------------------------------------------------------------------

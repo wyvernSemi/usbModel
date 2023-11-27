@@ -32,7 +32,7 @@
 
 static int node = 0;
 
-static uint8_t databuf     [usbModel::MAXBUFSIZE];
+static uint8_t databuf    [usbModel::MAXBUFSIZE];
 static char    scratchbuf [usbModel::ERRBUFSIZE];
 
 //-------------------------------------------------------------
@@ -49,7 +49,7 @@ extern "C" void VUserMain0()
     uint8_t              addr;
     uint8_t              endp;
     uint16_t             rxlen;
-    
+
     usbModel::deviceDesc devdesc;
 
     // Create host interface object to usbModel
@@ -82,7 +82,7 @@ extern "C" void VUserMain0()
 
         usbModel::fmtDevDescriptor(scratchbuf, databuf);
         USBDISPPKT ("\nVUserMain0: received device descriptor\n\n%s", scratchbuf);
-        
+
         // Save off the descriptor
         devdesc = *((usbModel::deviceDesc*)databuf);
 
@@ -125,13 +125,13 @@ extern "C" void VUserMain0()
         host.usbHostGetStrDescriptor(addr, endp, 1, databuf, 0xff, rxlen, false);
 
         USBDISPPKT ("\nVUserMain0: received string descriptor index 1\n");
-        USBDISPPKT ("  \"%s\"\n\n", &databuf);
+        USBDISPPKT ("  \"%s\"\n\n", (char*)&databuf);
 
         // Get string descriptor 2
         host.usbHostGetStrDescriptor(addr, endp, 2, databuf, 0xff, rxlen, false);
 
         USBDISPPKT ("\nVUserMain0: received string descriptor index 2\n");
-        USBDISPPKT ("  \"%s\"\n\n", &databuf);
+        USBDISPPKT ("  \"%s\"\n\n", (char*)&databuf);
 
         // Get the device status
         host.usbHostGetDeviceStatus(addr, endp, status);
@@ -172,27 +172,27 @@ extern "C" void VUserMain0()
         USBDISPPKT ("\nVUserMain0: received get interface value of 0x%02x\n\n", altif);
 
         host.usbHostSetInterface(addr, endp, 0, 1);
-        
+
         host.usbHostGetEndpointStatus(addr, endp, status);
-        
+
         USBDISPPKT ("\nVUserMain0: received endpoint status of 0x%02x (%s)\n\n", status, status ? "halted" : "not halted");
-        
+
         host.usbHostSetEndpointFeature(addr, endp, usbModel::EP_HALT_FEATURE);
-        
+
         host.usbHostGetEndpointStatus(addr, endp, status);
-        
+
         USBDISPPKT ("\nVUserMain0: received endpoint status of 0x%02x (%s)\n\n", status, status ? "halted" : "not halted");
-        
+
         host.usbHostClearEndpointFeature(addr, endp, usbModel::EP_HALT_FEATURE);
-        
+
         host.usbHostGetEndpointStatus(addr, endp, status);
-        
+
         USBDISPPKT ("\nVUserMain0: received endpoint status of 0x%02x (%s)\n\n", status, status ? "halted" : "not halted");
-        
+
         host.usbHostGetEndpointSynchFrame(addr, endp, status);
-        
+
         USBDISPPKT ("\nVUserMain0: received endpoint synch frame of 0x%04x\n\n", status);
-        
+
         // Send some data
         endp = 1;
         for (int idx = 0; idx < 56; idx++)
@@ -200,7 +200,23 @@ extern "C" void VUserMain0()
             databuf[idx] = idx;
         }
         host.usbHostBulkDataOut(addr, endp, databuf, 56, devdesc.bMaxPacketSize);
-
+        
+        // Fetch some data
+        endp = 0x81;
+        host.usbHostBulkDataIn(addr, endp, databuf, 64, devdesc.bMaxPacketSize);
+        
+         USBDISPPKT ("\nVUserMain0: received data from device:\n");
+         
+         for (int idx = 0; idx < 64; idx++)
+         {
+             if ((idx % 16) == 0)
+             {
+                 USBDISPPKT ("\n");
+             }
+             
+             USBDISPPKT (" %02x", databuf[idx]);
+         }
+         USBDISPPKT ("\n\n");
     }
 
     // Wait a bit before halting to let the device receive any last ACK

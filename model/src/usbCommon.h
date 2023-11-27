@@ -72,7 +72,8 @@ namespace usbModel
     static const int      SE0M                     = 0x00;
 
     static const int      MAXDEVADDR               = 127;
-    static const int      MAXENDP                  = 15;
+    static const int      MAXENDPOINTS             = 16;
+    static const int      MAXENDP                  = MAXENDPOINTS-1;
     static const int      MAXFRAMENUM              = 4095;
     static const int      MAXONESLENGTH            = 6;
 
@@ -174,7 +175,9 @@ namespace usbModel
     
     static const int      NOTIMEOUT                = 0;
     
-    static const int      MAXENDPOINTS             = 16;
+    static const uint8_t  DIRTODEV                 = 0x00;
+    static const uint8_t  DIRTOHOST                = 0x80;
+    
 
 // As these descriptor structures will used to form a single
 // super-configuration structure, padding beyond bytes must be disabled

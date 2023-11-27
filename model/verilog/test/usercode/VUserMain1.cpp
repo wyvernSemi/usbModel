@@ -38,28 +38,30 @@ static int node = 1;
 usbDevice::dataResponseType_e dataCallback (const uint8_t endp, uint8_t* data, int &numbytes)
 {
     int     idx;
-    
-    USBDISPPKT("\n**dataCallback**: endpoint = 0x%02x numbytes = %d\n", endp, numbytes);
-    
+
     // If an IN transfer, generate some data
     if (endp & 0x80)
     {
         numbytes = 32;
-        
+                
+        USBDISPPKT("\n**dataCallback**: IN request endpoint = 0x%02x sending = %d bytes\n", endp, numbytes);
+
         for (idx = 0; idx < numbytes; idx++)
         {
             data[idx] = idx;
         }
     }
-    // If an OUT trafsfer, display the data.
+    // If an OUT transfer, display the data.
     else
     {
+        USBDISPPKT("\n**dataCallback**: OUT request endpoint = 0x%02x numbytes = %d\n", endp, numbytes);
+        
         for (idx = 0; idx < numbytes; idx++)
         {
 
             if ((idx % 16) == 0)
             {
-                USBDISPPKT(FMT_DATA_GREY "\n   ");
+                USBDISPPKT("\n");
             }
             USBDISPPKT(" %02x", data[idx]);
         }
@@ -72,7 +74,7 @@ usbDevice::dataResponseType_e dataCallback (const uint8_t endp, uint8_t* data, i
         {
             USBDISPPKT(FMT_NORMAL);
         }
-        
+
         USBDISPPKT("\n");
     }
 
@@ -89,7 +91,7 @@ extern "C" void VUserMain1()
     char sbuf[usbModel::ERRBUFSIZE];
 
     usbDevice dev(node, dataCallback);
-    
+
     // Delay before connecting
     dev.usbDeviceSleepUs(50);
 
@@ -99,7 +101,7 @@ extern "C" void VUserMain1()
         fprintf(stderr, "***ERROR: VUserMain1: runUsbDevice returned bad status\n");
         dev.usbPktGetErrMsg(sbuf);
         fprintf(stderr, "%s\n", sbuf);
-        
+
         // Halt the simulation
         dev.usbDeviceEndExecution();
     }
