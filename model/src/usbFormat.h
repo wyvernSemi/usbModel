@@ -61,7 +61,7 @@
 #define FMT_DATA_GREY           "\033[38;5;244m"
 
 # else
-    
+
 #define FMT_NORMAL              ""
 #define FMT_BOLD                ""
 #define FMT_FAINT               ""

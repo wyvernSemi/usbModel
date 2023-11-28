@@ -58,16 +58,22 @@ private:
     // Local constant definitions
     //-------------------------------------------------------------
 
+    // PID value to not check for an expected PID type
     static const int      PID_NO_CHECK             = usbModel::PID_INVALID;
+
+    // Default idle ticks before responses
     static const int      DEFAULT_IDLE             = 4;
 
+    // Define the number of endpoints for each interface for this device
     static const int      NUMIF0EPS                = 1;
     static const int      NUMIF1EPS                = 2;
     static const int      TOTALNUMEPS              = NUMIF0EPS + NUMIF1EPS;
 
+    // This devices feature set values
     static const uint8_t  REMOTE_WAKEUP_STATE      = usbModel::USB_REMOTE_WAKEUP_OFF;
     static const uint8_t  SELF_POWERED_STATE       = usbModel::USB_NOT_SELF_POWERED;
-    
+
+    // Maximum number of received NAKs before generating an error
     static const int      MAXNAKS                  = 3;
 
 public:
@@ -85,7 +91,6 @@ public:
                 {false, false}, {false, false}, {false, false}, {false, false},
                 {false, true},  {false, false}, {false, false}, {false, false},
                 {false, false}, {false, false}, {false, false}, {false, false}},
-        epdata0{{true}},
         framenum(0),
         datacb(dataCallback)
     {
@@ -98,6 +103,7 @@ public:
 
         strdesc[2].bLength = 2;  // bLength + bDescriptorType bytes
         strdesc[2].bLength += usbModel::fmtStrToUnicode(strdesc[2].bString, "usbModel");
+
         reset();
     };
 
@@ -186,6 +192,7 @@ private:
         }
     };
 
+    // Union between configuration structure and a raw bytes array
     union cfgAllBuf
     {
         configAllDesc cfgall;
@@ -199,24 +206,45 @@ private:
     //-------------------------------------------------------------
     // Reset method, called on detecting a reset state on the line
     //-------------------------------------------------------------
-    void reset()
+
+    void reset(void)
     {
+        // Call reset method of base classes
         usbPliApi::apiReset();
+        usbPkt::reset();
+
+        // Reset the device address to be unassigned
         devaddr   = usbModel::USB_NO_ASSIGNED_ADDR;
+
+        // Set the device to be unconfigured
+        deviceConfigured = false;
+
+        // Reset the frame number
+        framenum = 0;
+
+
+        for (int edx = 0; edx < usbModel::MAXENDPOINTS; edx++)
+        {
+            ephalted[edx][0] = false;
+            ephalted[edx][1] = false;
+
+            epdata0[edx][0]  = true;
+            epdata0[edx][1]  = true;
+        }
     }
-
-    int         sendGetResp            (const usbModel::setupRequest* sreq,
-                                        const uint8_t data[], const int databytes,
-                                        const uint8_t endp,   const char* fmtstr,
-                                        const int     idle = DEFAULT_IDLE);
-
-    int         sendInData             (const uint8_t data[], const int  databytes,
-                                        const uint8_t endp,         bool skipfirstIN = false,
-                                        const int     idle = DEFAULT_IDLE);
 
     //-------------------------------------------------------------
     // Methods for sending packets back towards the host
     //-------------------------------------------------------------
+
+    int          sendGetResp           (const usbModel::setupRequest* sreq,
+                                        const uint8_t data[], const int databytes,
+                                        const uint8_t endp,   const char* fmtstr,
+                                        const int     idle = DEFAULT_IDLE);
+
+    int          sendInData            (const uint8_t data[], const int  databytes,
+                                        const uint8_t endp,         bool skipfirstIN = false,
+                                        const int     idle = DEFAULT_IDLE);
 
     int          sendPktToHost         (const int pid, const uint8_t  data[],   unsigned      datalen, const int idle = DEFAULT_IDLE);   // DATA
     int          sendPktToHost         (const int pid, const uint8_t  addr,     const uint8_t endp,    const int idle = DEFAULT_IDLE);   // Token
@@ -246,11 +274,11 @@ private:
     int          handleDevReq          (const usbModel::setupRequest* sreq, const uint8_t endp, const int idle = DEFAULT_IDLE);
     int          handleIfReq           (const usbModel::setupRequest* sreq, const uint8_t endp, const int idle = DEFAULT_IDLE);
     int          handleEpReq           (const usbModel::setupRequest* sreq, const uint8_t endp, const int idle = DEFAULT_IDLE);
-    
+
     //-------------------------------------------------------------
     // Methods for handling endpoint data0/1
     //-------------------------------------------------------------
-    
+
     inline int  epIdx                 (const int endp) {return endp & 0xf;};
     inline bool epDirIn               (const int endp) {return (endp >> 7) & 1;};
     inline int  dataPid               (const int endp) {return epdata0[epIdx(endp)][epDirIn(endp)] ? usbModel::PID_DATA_0 : usbModel::PID_DATA_1;};
@@ -261,7 +289,7 @@ private:
         {
             epdata0[epIdx(endp)][epDirIn(endp)] = !epdata0[epIdx(endp)][epDirIn(endp)];
         }
-        
+
         return dpid;
     }
 
@@ -271,24 +299,29 @@ private:
 
     // Assigned device address
     int                     devaddr;
+
+    // Device configured status
     bool                    deviceConfigured;
-    bool                    ephalted[usbModel::MAXENDPOINTS][2];
-    bool                    epvalid[usbModel::MAXENDPOINTS][2];
-    bool                    epdata0[usbModel::MAXENDPOINTS][2];
-                            
+
+    // Endpoint statuses for each possible endpoints and the directions
+    bool                    ephalted [usbModel::MAXENDPOINTS][usbModel::NUMEPDIRS];
+    bool                    epvalid  [usbModel::MAXENDPOINTS][usbModel::NUMEPDIRS];
+    bool                    epdata0  [usbModel::MAXENDPOINTS][usbModel::NUMEPDIRS];
+
     // Internal buffers for use by class methods
-    uint8_t                 rxdata [usbModel::MAXBUFSIZE];
-    usbModel::usb_signal_t  nrzi   [usbModel::MAXBUFSIZE];
-    char                    sbuf   [usbModel::ERRBUFSIZE];
-                            
-    // Device's descriptors 
+    uint8_t                 rxdata   [usbModel::MAXBUFSIZE];
+    usbModel::usb_signal_t  nrzi     [usbModel::MAXBUFSIZE];
+    char                    sbuf     [usbModel::ERRBUFSIZE];
+
+    // Device's descriptors
     usbModel::deviceDesc    devdesc;
     usbModel::stringDesc    strdesc[3];
     cfgAllBuf               cfgalldesc;
-    
+
     // Data callback function pointer
     usbDeviceDataCallback_t datacb;
 
+    // Last SOF frame number
     uint16_t framenum;
 
 

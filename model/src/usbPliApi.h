@@ -46,11 +46,6 @@ public:
     static const int IS_HOST         = false;
     static const int IS_DEVICE       = true;
 
-private:
-
-    static const int IDLE_FOREVER = 0;
-    static const int ADVANCE_TIME = 0;
-    static const int MINIMUMIDLE  = 1;
 
 #ifndef USBTESTMODE
     static const int MINRSTCOUNT     = ONE_MS * 10;  // 10ms for fullspeed device
@@ -59,6 +54,12 @@ private:
     static const int MINRSTCOUNT     = ONE_US * 25;
     static const int MINSUSPENDCOUNT = ONE_US * 100;
 #endif
+
+private:
+
+    static const int IDLE_FOREVER = 0;
+    static const int ADVANCE_TIME = 0;
+    static const int MINIMUMIDLE  = 1;
 
 public:
 
@@ -104,6 +105,38 @@ protected:
         do {
             currtime = apiGetClkCount(ADVANCE_TIME);
         } while ((ticks == IDLE_FOREVER) || ((currtime-time) < ticks));
+    }
+
+    //-------------------------------------------------------------
+    // apiSendReset
+    //
+    // Advance simulation time for specified number of clock ticks
+    // (default 1) whilst drive the line at the SE0 state
+    // (OE active).
+    //
+    //-------------------------------------------------------------
+
+    void apiSendReset (const unsigned ticks = 1)
+    {
+        unsigned time;
+        unsigned currtime;
+
+        // Sample Current clock count
+        time = apiGetClkCount();
+
+        // Enable outputs
+        VWrite(OUTEN, 1, DELTA_CYCLE, node);
+
+        // Set the line to SE0
+        VWrite(LINE, 0, ADVANCE_TIME, node);
+
+        // Keep reading clock count for 'ticks' number of cycles
+        do {
+            currtime = apiGetClkCount(ADVANCE_TIME);
+        } while ((ticks == IDLE_FOREVER) || ((currtime-time) < ticks));
+
+        // Disable outputs
+        VWrite(OUTEN, 0, DELTA_CYCLE, node);
     }
 
     //-------------------------------------------------------------
@@ -234,6 +267,7 @@ protected:
 
     void apiSendPacket(const usbModel::usb_signal_t nrzi[], const int bitlen, const int delay = 50)
     {
+        // Idle the bus for a time
         if (delay >= MINIMUMIDLE)
         {
             apiSendIdle(delay);
@@ -290,6 +324,7 @@ protected:
     //   usbModel::USBRESET
     //   usbModel::USBSUSPEND
     //   usbModel::USBNORESPONSE
+    //   usbModel::USBERROR
     //
     //-------------------------------------------------------------
 
@@ -305,8 +340,6 @@ protected:
 
         // Disable outputs
         VWrite(OUTEN, 0, DELTA_CYCLE, node);
-        
-        USBDEVDEBUG ("%s apiWaitForPkt: isDevice=%d\n", isDevice ? "<==" : "==>", isDevice);
 
         do {
             // Get status on USB line
@@ -336,6 +369,7 @@ protected:
             // If idle and an SE0 seen then this may be a reset
             else if (isDevice && idle && line == usbModel::USB_SE0)
             {
+                idle         = false;
                 lookforreset = true;
                 rstcount++;
             }
@@ -352,21 +386,24 @@ protected:
                 else
                 {
                     // The return status is reset if seen sufficient consecutive SE0s,
-                    // else flag an error.
-                    rstcount = 0;
-
+                    // else return an error for unexplained SE0s
                     if (rstcount >= MINRSTCOUNT)
                     {
                         return usbModel::USBRESET;
                     }
+                    else
+                    {
+                        return usbModel::USBERROR;
+                    }
 
+                    rstcount = 0;
                     lookforreset = false;
                     idle         = (line == usbModel::USB_K) ? false : true;
                 }
             }
 
             // If not idle, then process the packet data
-            if (!idle)
+            if (!idle && !lookforreset)
             {
                 idlecount = 0;
 
@@ -406,12 +443,12 @@ protected:
                     suspended = true;
                     return usbModel::USBSUSPEND;
                 }
-                
+
                 if (timeout != usbModel::NOTIMEOUT && idlecount >= timeout)
                 {
                     return usbModel::USBNORESPONSE;
                 }
-                
+
             }
         } while (true);
 

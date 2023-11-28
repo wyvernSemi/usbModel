@@ -46,8 +46,8 @@ extern "C" void VUserMain0()
     uint16_t             status;
     uint8_t              dev_cfg;
     uint8_t              altif;
-    uint8_t              addr;
-    uint8_t              endp;
+    uint8_t              addr = 0;
+    uint8_t              endp = 0;
     uint16_t             rxlen;
 
     usbModel::deviceDesc devdesc;
@@ -58,7 +58,10 @@ extern "C" void VUserMain0()
     // Wait for a bit
     host.usbHostSleepUs(10);
 
+    //-------------------------------------------------------------
     // Wait for a connection...
+    //-------------------------------------------------------------
+            
     if ((linestate = host.usbHostWaitForConnection()) != usbModel::USB_J)
     {
         // If an error occurred, then the method timed out waiting
@@ -77,25 +80,40 @@ extern "C" void VUserMain0()
     // Successfully connected, so start generating traffic
     else
     {
+        //-------------------------------------------------------------
+        // Get the connected device's descriptor information
+        //-------------------------------------------------------------
+
         // Get the device descriptor
         host.usbHostGetDeviceDescriptor (usbModel::CONTROL_ADDR, usbModel::CONTROL_EP, databuf, 0x00FF, rxlen, false);
 
         usbModel::fmtDevDescriptor(scratchbuf, databuf);
         USBDISPPKT ("\nVUserMain0: received device descriptor\n\n%s", scratchbuf);
 
-        // Save off the descriptor
+        // Save off the descriptor for use later
         devdesc = *((usbModel::deviceDesc*)databuf);
 
-        // Set the device address to 1
+        //-------------------------------------------------------------
+        // Reset the device
+        //-------------------------------------------------------------
+        
+        host.usbHostResetDevice();
+        
+        //-------------------------------------------------------------
+        // Set the device's address to 1
+        //-------------------------------------------------------------
         addr = 1;
-        endp = 0;
         host.usbHostSetDeviceAddress(usbModel::CONTROL_ADDR, usbModel::CONTROL_EP, addr);
 
         USBDISPPKT ("\nVUserMain0: sent SET_ADDR (0x%04x)\n\n", addr);
 
-        // Get the configuration descriptor. Device will want to return all descriptors under
-        // the config descriptor, so just ask for the number of bytes required for the
-        // first descriptor (the config)
+        //-------------------------------------------------------------
+        // Get the configuration descriptor.
+        //-------------------------------------------------------------
+
+        // Device will want to return all descriptors under the config
+        // descriptor, so just ask for the number of bytes required for
+        // the first descriptor (the configuration descriptor)
         host.usbHostGetConfigDescriptor(addr, endp, databuf, sizeof(usbModel::configDesc), rxlen, false);
 
         usbModel::fmtCfgDescriptor(scratchbuf, databuf);
@@ -110,6 +128,10 @@ extern "C" void VUserMain0()
 
         usbModel::fmtCfgAllDescriptor(scratchbuf, databuf);
         USBDISPPKT ("\nVUserMain0: received config descriptor\n\n%s", scratchbuf);
+
+        //-------------------------------------------------------------
+        // Get the string descriptors
+        //-------------------------------------------------------------
 
         // Get string descriptor 0
         host.usbHostGetStrDescriptor(addr, endp, 0, databuf, 0xff, rxlen, false);
@@ -133,12 +155,22 @@ extern "C" void VUserMain0()
         USBDISPPKT ("\nVUserMain0: received string descriptor index 2\n");
         USBDISPPKT ("  \"%s\"\n\n", (char*)&databuf);
 
-        // Get the device status
+        //-------------------------------------------------------------
+        // Get the device's status.
+        // Indicates self-powered(bit 0) and remote wakeup (bit 1)
+        // statuses
+        //-------------------------------------------------------------
+
         host.usbHostGetDeviceStatus(addr, endp, status);
 
         USBDISPPKT ("\nVUserMain0: received device status of 0x%04x\n\n", status);
 
-        // Get the device configurations status
+        //-------------------------------------------------------------
+        // Get/set the device's configuration status.
+        // Indicates/controls whether enabled or disabled.
+        //-------------------------------------------------------------
+        
+        // Get the current device status
         host.usbHostGetDeviceConfig(addr, endp, dev_cfg);
 
         USBDISPPKT ("\n\nVUserMain0: received device configuration of 0x%02x (%s)\n\n", dev_cfg, dev_cfg ? "enabled" : "disabled");
@@ -153,14 +185,18 @@ extern "C" void VUserMain0()
 
         USBDISPPKT ("\n\nVUserMain0: received device configuration of 0x%02x (%s)\n\n", dev_cfg, dev_cfg ? "enabled" : "disabled");
 
+        //-------------------------------------------------------------
+        // Set/clear device, interface and endpoint features
+        //-------------------------------------------------------------
+
         // Clear a device feature
         host.usbHostClearDeviceFeature(addr, endp, 0);
 
         // Set a device feature
         host.usbHostSetDeviceFeature(addr, endp, 1);
 
-        // Get interface status
-        host.usbHostGetInterfaceStatus(addr, endp, status);
+        // Get interface0 status
+        host.usbHostGetInterfaceStatus(addr, endp, 0, status);
 
         USBDISPPKT ("\nVUserMain0: received interface status of 0x%04x\n\n", status);
 
@@ -189,9 +225,17 @@ extern "C" void VUserMain0()
 
         USBDISPPKT ("\nVUserMain0: received endpoint status of 0x%02x (%s)\n\n", status, status ? "halted" : "not halted");
 
+        //-------------------------------------------------------------
+        // Get an endpoint's synch frame number
+        //-------------------------------------------------------------
+        
         host.usbHostGetEndpointSynchFrame(addr, endp, status);
 
         USBDISPPKT ("\nVUserMain0: received endpoint synch frame of 0x%04x\n\n", status);
+        
+        //-------------------------------------------------------------
+        // Do some BULK transfers
+        //-------------------------------------------------------------
 
         // Send some data
         endp = 1;
@@ -200,27 +244,34 @@ extern "C" void VUserMain0()
             databuf[idx] = idx;
         }
         host.usbHostBulkDataOut(addr, endp, databuf, 56, devdesc.bMaxPacketSize);
-        
+
         // Fetch some data
         endp = 0x81;
         host.usbHostBulkDataIn(addr, endp, databuf, 64, devdesc.bMaxPacketSize);
-        
+
          USBDISPPKT ("\nVUserMain0: received data from device:\n");
-         
+
          for (int idx = 0; idx < 64; idx++)
          {
              if ((idx % 16) == 0)
              {
                  USBDISPPKT ("\n");
              }
-             
+
              USBDISPPKT (" %02x", databuf[idx]);
          }
          USBDISPPKT ("\n\n");
+         
+         //-------------------------------------------------------------
+         // Suspend device
+         //-------------------------------------------------------------
+         
+         host.usbHostSuspendDevice();
+         
     }
 
     // Wait a bit before halting to let the device receive any last ACK
-    host.usbHostSleepUs(100);
+    host.usbHostSleepUs(10);
 
     // Halt the simulation
     host.usbHostEndExecution();

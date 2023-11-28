@@ -73,6 +73,7 @@ namespace usbModel
 
     static const int      MAXDEVADDR               = 127;
     static const int      MAXENDPOINTS             = 16;
+    static const int      NUMEPDIRS                = 2;
     static const int      MAXENDP                  = MAXENDPOINTS-1;
     static const int      MAXFRAMENUM              = 4095;
     static const int      MAXONESLENGTH            = 6;
@@ -106,9 +107,9 @@ namespace usbModel
     static const int      ARGADDRIDX               = 0;
     static const int      ARGENDPIDX               = 1;
     static const int      ARGTKNCRC5IDX            = 2;
-
     static const int      ARGFRAMEIDX              = 0;
     static const int      ARGSOFCRC5IDX            = 1;
+    static const int      MAXNUMARGS               = 4;
 
     static const int      ARGCRC16IDX              = 0;
 
