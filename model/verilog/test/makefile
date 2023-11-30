@@ -185,11 +185,11 @@ ${VPROCLIBPATH}: ${VPROC_TOP}
 #
 ${VPROC_TOP}:
 	@git clone ${VPROC_REPO} ${VPROC_TOP} --recursive
-    
+
 #
 # Auto-generate the C++ header from the Verilog header so they always match
 #
-${USBCMAP}: ${USBVLOGMAP} 
+${USBCMAP}: ${USBVLOGMAP}
 	@sed -e 's/`/#/g' -e 's/_USB_VH_/_USB_MAP_H_/g' < $^ > $@
 
 #------------------------------------------------------
@@ -199,7 +199,17 @@ ${USBCMAP}: ${USBVLOGMAP}
 run: ${VPROCLIBPATH} verilog ${PLI_SO}
 	@vsim -c -GGUI_RUN=0 ${VSIMFLAGS} -do "run -all"
 
+sim: ${VPROCLIBPATH} verilog ${PLI_SO}
+	@vsim -c -GGUI_RUN=0 ${VSIMFLAGS}
+
 rungui: ${VPROCLIBPATH} verilog ${PLI_SO}
+	@if [ -e wave.do ]; then                                                \
+         vsim -gui -GGUI_RUN=1 -do wave.do ${VSIMFLAGS} -do "run -all";     \
+     else                                                                   \
+         vsim -gui -GGUI_RUN=1 ${VSIMFLAGS};                                \
+     fi
+
+simgui: ${VPROCLIBPATH} verilog ${PLI_SO}
 	@if [ -e wave.do ]; then                                                \
          vsim -gui -GGUI_RUN=1 -do wave.do ${VSIMFLAGS} -do "run -all";     \
      else                                                                   \
