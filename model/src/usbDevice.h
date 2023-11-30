@@ -82,7 +82,7 @@ public:
     // Constructor
     //-------------------------------------------------------------
 
-    usbDevice (int nodeIn, usbDeviceDataCallback_t dataCallback = NULL, std::string name = std::string(FMT_DEVICE "DEV " FMT_NORMAL)) :
+    usbDevice (int nodeIn, usbDeviceDataCallback_t datacbIn = NULL, std::string name = std::string(FMT_DEVICE "DEV " FMT_NORMAL)) :
         usbPliApi(nodeIn, name),
         usbPkt(name),
         deviceConfigured(false),
@@ -92,7 +92,7 @@ public:
                 {false, true},  {false, false}, {false, false}, {false, false},
                 {false, false}, {false, false}, {false, false}, {false, false}},
         framenum(0),
-        datacb(dataCallback)
+        datacb(datacbIn)
     {
         strdesc[0].bLength    = 6; // bLength + bDescriptorType bytes plus two wLANGID entries (2 bytes each)
         strdesc[0].bString[0] = usbModel::LANGID_ENG_UK; // English UK
@@ -184,7 +184,7 @@ private:
 
         configAllDesc() : cfgdesc0(sizeof(configAllDesc)),
                           ifdesc0(0, NUMIF0EPS),
-                          epdesc0_0(0x88, 0x03, 0xff),
+                          epdesc0_0(0x82, 0x03, 0xff),
                           ifdesc1(1, NUMIF1EPS),
                           epdesc1_0(0x81, 02),
                           epdesc1_1(0x01, 02)
@@ -322,7 +322,7 @@ private:
     usbDeviceDataCallback_t datacb;
 
     // Last SOF frame number
-    uint16_t framenum;
+    uint16_t                framenum;
 
 
 };

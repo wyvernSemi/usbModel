@@ -178,7 +178,7 @@ ${PLI_SO}: checkenv ${VPROCLIBPATH} ${ALLSRC} ${SRCHDRS} ${USRHDRS}
 # VProc library.
 #
 ${VPROCLIBPATH}: ${VPROC_TOP}
-	@${MAKE} --no-print-directory -C ${VPROC_TOP} MAX_NUM_VPROC=${NUM_VPROC} USER_C="" ${VPROC_LIB}
+	@${MAKE} --no-print-directory -C ${VPROC_TOP} MAX_NUM_VPROC=${NUM_VPROC} ARCHFLAG=${ARCH} USER_C="" ${VPROC_LIB}
 
 #
 # Checkout VProc from github if it doesn't exist at the specified location

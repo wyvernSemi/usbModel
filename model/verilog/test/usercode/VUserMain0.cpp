@@ -33,6 +33,7 @@
 static int node = 0;
 
 static uint8_t databuf    [usbModel::MAXBUFSIZE];
+static uint8_t cfgdescbuf [usbModel::MAXBUFSIZE];
 static char    scratchbuf [usbModel::ERRBUFSIZE];
 
 //-------------------------------------------------------------
@@ -125,6 +126,9 @@ extern "C" void VUserMain0()
 
         // Now request the lot
         host.usbHostGetConfigDescriptor(addr, endp, databuf, wTotalLength, rxlen, false);
+        
+        // Save off the descriptor data
+        memcpy(cfgdescbuf, databuf, wTotalLength);
 
         usbModel::fmtCfgAllDescriptor(scratchbuf, databuf);
         USBDISPPKT ("\nVUserMain0: received config descriptor\n\n%s", scratchbuf);
@@ -200,8 +204,8 @@ extern "C" void VUserMain0()
 
         USBDISPPKT ("\nVUserMain0: received interface status of 0x%04x\n\n", status);
 
-        host.usbHostClearInterfaceFeature(addr, endp, 0);
-        host.usbHostSetInterfaceFeature(addr, endp, 0);
+        host.usbHostClearInterfaceFeature(addr, endp, 0, 0);
+        host.usbHostSetInterfaceFeature(addr, endp, 0, 0);
 
         host.usbHostGetInterface(addr, endp, 0, altif);
 
@@ -239,15 +243,23 @@ extern "C" void VUserMain0()
 
         // Send some data
         endp = 1;
+        
+        // Define some endpoint descriptors for the endpoint, OUT and IN
+        usbModel::endpointDesc epdesc1_OUT, epdesc1_IN;
+        
+        // Extract the enddpoint decriptors from the saved configuration descriptor data
+        host.usbHostFindDescriptor(usbModel::EP_DESCRIPTOR_TYPE, endp | usbModel::DIRTODEV,  cfgdescbuf, wTotalLength, (uint8_t*)&epdesc1_OUT);
+        host.usbHostFindDescriptor(usbModel::EP_DESCRIPTOR_TYPE, endp | usbModel::DIRTOHOST, cfgdescbuf, wTotalLength, (uint8_t*)&epdesc1_IN);
+        
         for (int idx = 0; idx < 56; idx++)
         {
             databuf[idx] = idx;
         }
-        host.usbHostBulkDataOut(addr, endp, databuf, 56, devdesc.bMaxPacketSize);
+        host.usbHostBulkDataOut(addr, endp, databuf, 56, epdesc1_OUT.wMaxPacketSize);
 
         // Fetch some data
         endp = 0x81;
-        host.usbHostBulkDataIn(addr, endp, databuf, 64, devdesc.bMaxPacketSize);
+        host.usbHostBulkDataIn(addr, endp, databuf, 64, epdesc1_IN.wMaxPacketSize);
 
          USBDISPPKT ("\nVUserMain0: received data from device:\n");
 

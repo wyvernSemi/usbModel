@@ -268,7 +268,7 @@ int usbHost::usbHostGetStrDescriptor (const uint8_t  addr,     const uint8_t  en
 // then only the length of the descriptor is returned. If it is greater than
 // the requested length, then it is truncated to the request length. The
 // requested length can be checked against the returned length for a match
-// if the optional chklen argument is true default false) where an error is
+// if the optional chklen argument is true (default false) where an error is
 // returned if not equal.  An optional idle argument specifies a period to
 // wait before instigating the transaction (default 4 clock periods).
 //
@@ -421,11 +421,12 @@ int usbHost::usbHostGetConfigDescriptor  (const uint8_t  addr,   const uint8_t  
 // -------------------------------------------------------------------------
 // usbHostSetDeviceAddress
 //
-// Public method to set the address of the connected device.
+// Public method used to set the address of the connected device.
 //
 // The method takes a device address (addr) and an endpoint index (endp),
 // including direction bit in bit 7), along with a device address value
-// (devaddr). An optional idle argument specifies a period to wait before
+// (devaddr). The devaddr argument specifies the device address to set.
+// An optional idle argument specifies a period to wait before
 // instigating the transaction (default 4 clock periods).
 //
 // The method returns usbModel::USBOK on success. If an error occurred during
@@ -577,10 +578,10 @@ int usbHost::usbHostGetInterfaceStatus (const uint8_t addr, const uint8_t endp, 
 // Public method to clear an interface's feature on the connected device
 //
 // The method takes a device address (addr) and an endpoint index (endp),
-// including direction bit in bit 7), along with a feature argument to
-// select which feature is cleared. An optional idle argument specifies a
-// period to wait before instigating the transaction (default 4 clock
-// periods).
+// including direction bit in bit 7), an index to select which interface
+// to operate on, and a feature argument to select which feature is cleared.
+// An optional idle argument specifies a period to wait before instigating
+// the transaction (default 4 clock periods).
 //
 // The method returns usbModel::USBOK on success. If an error occurred during
 // the transaction, then usbModel::USBERROR is returned, or if a device
@@ -591,15 +592,15 @@ int usbHost::usbHostGetInterfaceStatus (const uint8_t addr, const uint8_t endp, 
 //
 // -------------------------------------------------------------------------
 
-int usbHost::usbHostClearInterfaceFeature (const uint8_t  addr,    const uint8_t endp,
-                                           const uint16_t feature,
+int usbHost::usbHostClearInterfaceFeature (const uint8_t  addr,    const uint8_t  endp,
+                                           const uint16_t ifidx,   const uint16_t feature,
                                            const unsigned idle)
 {
     return sendStandardRequest(addr, endp,
                                usbModel::USB_IF_REQTYPE_SET,
                                usbModel::USB_REQ_CLEAR_FEATURE,
                                feature,                                 // wValue
-                               0,                                       // wIndex
+                               ifidx,                                   // wIndex
                                0,                                       // wLength
                                idle);
 }
@@ -610,10 +611,10 @@ int usbHost::usbHostClearInterfaceFeature (const uint8_t  addr,    const uint8_t
 // Public method to set an interface's feature on the connected device
 //
 // The method takes a device address (addr) and an endpoint index (endp),
-// including direction bit in bit 7), along with a feature argument to
-// select which feature is set. An optional idle argument specifies a
-// period to wait before instigating the transaction (default 4 clock
-// periods).
+// including direction bit in bit 7), an index to select which interface to
+//  access (ifidx), and a feature argument to select which feature is set.
+// An optional idle argument specifies a period to wait before instigating
+// the transaction (default 4 clock periods).
 //
 // The method returns usbModel::USBOK on success. If an error occurred during
 // the transaction, then usbModel::USBERROR is returned, or if a device
@@ -624,15 +625,15 @@ int usbHost::usbHostClearInterfaceFeature (const uint8_t  addr,    const uint8_t
 //
 // -------------------------------------------------------------------------
 
-int usbHost::usbHostSetInterfaceFeature (const uint8_t    addr,    const uint8_t endp,
-                                         const uint16_t feature,
+int usbHost::usbHostSetInterfaceFeature (const uint8_t  addr,      const uint8_t  endp,
+                                         const uint16_t ifidx,     const uint16_t feature,
                                          const unsigned idle)
 {
     return sendStandardRequest(addr, endp,
                                usbModel::USB_IF_REQTYPE_SET,
                                usbModel::USB_REQ_SET_FEATURE,
                                feature,                                 // wValue
-                               0,                                       // wIndex
+                               ifidx,                                   // wIndex
                                0,                                       // wLength
                                idle);
 }
@@ -645,7 +646,7 @@ int usbHost::usbHostSetInterfaceFeature (const uint8_t    addr,    const uint8_t
 //
 // The method takes a device address (addr) and an endpoint index (endp),
 // including direction bit in bit 7), along with an index to select which
-// interface to fetch from (index). The aternative interface setting
+// interface to fetch from (ifidx). The aternative interface setting
 // value is returned in the referenced altif argument.
 //
 // The method returns usbModel::USBOK on success. If an error occurred during
@@ -658,7 +659,7 @@ int usbHost::usbHostSetInterfaceFeature (const uint8_t    addr,    const uint8_t
 // -------------------------------------------------------------------------
 
 int usbHost::usbHostGetInterface (const uint8_t  addr,      const uint8_t endp,
-                                  const uint16_t index,           uint8_t &altif,
+                                  const uint16_t ifidx,           uint8_t &altif,
                                   const unsigned idle)
 {
     int error = usbModel::USBOK;
@@ -670,7 +671,7 @@ int usbHost::usbHostGetInterface (const uint8_t  addr,      const uint8_t endp,
                                       usbModel::USB_IF_REQTYPE_GET,
                                       usbModel::USB_REQ_GET_INTERFACE,
                                       0,                                        // wValue
-                                      index,                                    // wIndex
+                                      ifidx,                                    // wIndex
                                       1,                                        // wLength
                                       idle)) != usbModel::USBOK)
     {
@@ -704,7 +705,7 @@ int usbHost::usbHostGetInterface (const uint8_t  addr,      const uint8_t endp,
 //
 // The method takes a device address (addr) and an endpoint index (endp),
 // including direction bit in bit 7), along with an index to select which
-// interface to set (index). The aternative interface setting to be set
+// interface to set (ifidx). The aternative interface setting to be set
 // passed in with the altif argument.
 //
 // The method returns usbModel::USBOK on success. If an error occurred during
@@ -717,14 +718,14 @@ int usbHost::usbHostGetInterface (const uint8_t  addr,      const uint8_t endp,
 // -------------------------------------------------------------------------
 
 int usbHost::usbHostSetInterface (const uint8_t  addr,      const uint8_t endp,
-                                  const uint16_t index,     const uint8_t altif,
+                                  const uint16_t ifidx,     const uint8_t altif,
                                   const unsigned idle)
 {
     return sendStandardRequest(addr, endp,
                                usbModel::USB_IF_REQTYPE_SET,
                                usbModel::USB_REQ_SET_INTERFACE,
                                altif,                               // wValue
-                               index,                               // wIndex
+                               ifidx,                               // wIndex
                                0,                                   // wLength
                                idle);
 }
@@ -823,7 +824,7 @@ int usbHost::usbHostSetEndpointFeature (const uint8_t  addr,    const uint8_t en
 // -------------------------------------------------------------------------
 // usbHostGetEndpointSynchFrame
 //
-// Public method to get an endpoint's current sunch frame number from the
+// Public method to get an endpoint's current synch frame number from the
 // connected device
 //
 // The method takes a device address (addr) and an endpoint index (endp),
@@ -1588,7 +1589,65 @@ void usbHost::checkSof (const unsigned idle)
     }
 }
 
+// -------------------------------------------------------------------------
+// usbHostFindDescriptor
+//
+// Method to extract a particular descriptor from a buffer constaining all
+// the descriptors returned from a full usbHostGetConfigDescriptor fetch.
+//
+// The type of the edcriptor to extract is given by desctype. The decidx
+// indexes a descriptor if the type could have more than one. For class
+// specific descriptors, this should be set to the sub-class value. If 
+// there is no index or sub-class, then this shoud be set to
+// usbModel::NOT_VALID. The raw descriptor data buffer pointer is passed 
+// in as rawdata, and a length to return is specified in len. The extracted
+// data is returned in the buffer pointed to by descdata.
+//
+// If the extracted data would exceed len, then the method returns
+// usbModel::USBERROR, else it returns usbModel::USBOK.
+//
+// -------------------------------------------------------------------------
 
+int usbHost::usbHostFindDescriptor (const int desctype, const int descidx, const uint8_t* rawdata, const int len, uint8_t* descdata)
+{
+    int error = usbModel::USBOK;
+    int idx = 0;
+
+    do
+    {
+        int bLength          = rawdata[idx + 0];
+        int bDecriptorType   = rawdata[idx + 1];
+        int descIndex        = rawdata[idx + 2]; 
+        
+        if (bDecriptorType == desctype && (descidx < 0 || descidx == descIndex))
+        {
+            if ((idx + bLength) <= len)
+            {
+                memcpy(descdata, &rawdata[idx], bLength);
+                break;
+            }
+            else
+            {
+                error = usbModel::USBERROR;
+                break;
+            }
+        }
+        else
+        {
+            if ((idx + bLength) <= len)
+            {
+                idx += bLength;
+            }
+            else
+            {
+                error = usbModel::USBERROR;
+            }
+        }
+    }
+    while(true);
+
+    return error;
+}
 
 
 

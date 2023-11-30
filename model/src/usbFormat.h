@@ -127,8 +127,8 @@ int         fmtUnionFuncDescriptor    (char sbuf[], const uint8_t rawdata[], con
 int         fmtCallMgmtFuncDescriptor (char sbuf[], const uint8_t rawdata[], const unsigned indent = 0, const int maxstrsize = ERRBUFSIZE);
 int         fmtCfgAllDescriptor       (char sbuf[], const uint8_t rawdata[], const unsigned indent = 0, const int maxstrsize = ERRBUFSIZE);
 
-const char* fmtFuncDescSubtype        (const uint8_t subtype);
-const char* fmtDecriptorType          (const uint8_t desc);
+const char* fmtFuncDescSubtype        (const uint8_t  subtype);
+const char* fmtDecriptorType          (const uint8_t  desc);
 const char* fmtLineState              (const unsigned linestate);
 
 int         fmtStrToUnicode           (uint16_t* dst, const char*     src, const int maxstrsize = MAXSTRDESCSTRING);

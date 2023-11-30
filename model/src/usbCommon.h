@@ -36,6 +36,7 @@
 
 namespace usbModel
 {
+    static const int      NOT_VALID                = -1;
     // USB1.0
     static const int      PID_SPCL_PREAMB          = 0xc;
 
@@ -64,7 +65,7 @@ namespace usbModel
     static const int      PID_DATA_2               = 0x7;
     static const int      PID_DATA_M               = 0xf;
 
-    static const int      PID_INVALID              = -1;
+    static const int      PID_INVALID              = NOT_VALID;
 
     static const int      SYNC                     = 0x80;
 
@@ -150,7 +151,7 @@ namespace usbModel
     static const uint8_t  USB_EP_DESCRIPTOR_TYPE   = 0x05;
     static const uint8_t  USB_FUNC_DESCRIPTOR_TYPE = 0x24;
 
-    static const int      USB_NO_ASSIGNED_ADDR     = -1;
+    static const int      USB_NO_ASSIGNED_ADDR     = NOT_VALID;
 
     static const uint8_t  DEVICE_DESCRIPTOR_TYPE   = 0x01;
     static const uint8_t  CONFIG_DESCRIPTOR_TYPE   = 0x02;

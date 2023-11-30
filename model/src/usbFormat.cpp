@@ -147,6 +147,7 @@ namespace usbModel
                         FMT_DATA_GREY
                         "%s  bLength                = %d\n"
                         "%s  bDescriptorType        = %s\n"
+                        "%s  bInterfaceNumber       = %02x\n"
                         "%s  bAlternateSetting      = %02x\n"
                         "%s  bNumEndpoints          = %02x\n"
                         "%s  bInterfaceClass        = %02x\n"
@@ -156,6 +157,7 @@ namespace usbModel
                         FMT_NORMAL,
                         ibuf, desc->bLength,
                         ibuf, fmtDecriptorType(desc->bDescriptorType),
+                        ibuf, desc->bInterfaceNumber,
                         ibuf, desc->bAlternateSetting,
                         ibuf, desc->bNumEndpoints,
                         ibuf, desc->bInterfaceClass,
@@ -357,7 +359,7 @@ namespace usbModel
                     soffset += fmtCallMgmtFuncDescriptor(&sbuf[soffset], &rawdata[roffset], subdescindent, maxstrsize-soffset); roffset+= rawdata[roffset];
                     break;
                 case ACM_SUBTYPE:
-                    soffset += snprintf(&sbuf[soffset], maxstrsize-soffset,  "\n..Abstract Control Management Functional Descriptor:\n\n");
+                    soffset += snprintf(&sbuf[soffset], maxstrsize-soffset,  "\n..Abstract Control Management Function Descriptor:\n\n");
                     soffset += fmtAcmFuncDescriptor(&sbuf[soffset], &rawdata[roffset], subdescindent, maxstrsize-soffset); roffset+= rawdata[roffset];
                     break;
                 case UNION_SUBTYPE:

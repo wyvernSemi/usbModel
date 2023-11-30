@@ -122,38 +122,20 @@ public:
                                        const unsigned timeout   =  3*usbPliApi::ONE_MS);
 
     // ----------------------------------------------------------
-    // Device control methods
+    // Extract descriptors from raw configuration description 
+    // data
     // ----------------------------------------------------------
 
-    int  usbHostSetDeviceAddress      (const uint8_t  addr,      const uint8_t  endp,
-                                       const uint16_t devaddr,
-                                       const unsigned idle = DEFAULTIDLEDELAY);
-
-    int  usbHostGetDeviceStatus       (const uint8_t  addr,      const uint8_t  endp,
-                                             uint16_t &status,
-                                       const unsigned idle = DEFAULTIDLEDELAY);
+    int  usbHostFindDescriptor        (const int desctype, const int      descidx, const uint8_t* rawdata,
+                                       const int len,            uint8_t* descdata);
+    
+    // ----------------------------------------------------------
+    // Device control methods
+    // ----------------------------------------------------------
 
     int  usbHostGetDeviceDescriptor   (const uint8_t  addr,      const uint8_t  endp,
                                              uint8_t  data[],    const uint16_t reqlen,
                                              uint16_t &rxlen,    const bool     chklen = true,
-                                       const unsigned idle = DEFAULTIDLEDELAY);
-
-    int  usbHostGetDeviceConfig       (const uint8_t  addr,      const uint8_t  endp,
-                                             uint8_t  &cfgstate,
-                                       const uint8_t  index = 1,
-                                       const unsigned idle = DEFAULTIDLEDELAY);
-
-    int  usbHostSetDeviceConfig       (const uint8_t  addr,      const uint8_t  endp,
-                                       const uint8_t  index,
-                                       const unsigned idle = DEFAULTIDLEDELAY);
-
-
-    int  usbHostClearDeviceFeature    (const uint8_t  addr,      const uint8_t endp,
-                                       const uint16_t feature,
-                                       const unsigned idle = DEFAULTIDLEDELAY);
-
-    int  usbHostSetDeviceFeature      (const uint8_t  addr,      const uint8_t endp,
-                                       const uint16_t  feature,
                                        const unsigned idle = DEFAULTIDLEDELAY);
 
     int  usbHostGetConfigDescriptor   (const uint8_t  addr,      const uint8_t  endp,
@@ -168,6 +150,34 @@ public:
                                        const uint16_t langid = usbModel::LANGID_ENG_UK,
                                        const unsigned idle   = DEFAULTIDLEDELAY);
 
+    int  usbHostSetDeviceAddress      (const uint8_t  addr,      const uint8_t  endp,
+                                       const uint16_t devaddr,
+                                       const unsigned idle = DEFAULTIDLEDELAY);
+
+
+    int  usbHostGetDeviceStatus       (const uint8_t  addr,      const uint8_t  endp,
+                                             uint16_t &status,
+                                       const unsigned idle = DEFAULTIDLEDELAY);
+
+
+    int  usbHostGetDeviceConfig       (const uint8_t  addr,      const uint8_t  endp,
+                                             uint8_t  &cfgstate,
+                                       const uint8_t  index = 1,
+                                       const unsigned idle = DEFAULTIDLEDELAY);
+
+    int  usbHostSetDeviceConfig       (const uint8_t  addr,      const uint8_t  endp,
+                                       const uint8_t  index = 1,
+                                       const unsigned idle = DEFAULTIDLEDELAY);
+
+
+    int  usbHostClearDeviceFeature    (const uint8_t  addr,      const uint8_t endp,
+                                       const uint16_t feature,
+                                       const unsigned idle = DEFAULTIDLEDELAY);
+
+    int  usbHostSetDeviceFeature      (const uint8_t  addr,      const uint8_t endp,
+                                       const uint16_t feature,
+                                       const unsigned idle = DEFAULTIDLEDELAY);
+
     // ----------------------------------------------------------
     // Interface control methods
     // ----------------------------------------------------------
@@ -176,20 +186,20 @@ public:
                                        const uint16_t ifidx,           uint16_t &status,
                                        const unsigned idle = DEFAULTIDLEDELAY);
 
-    int  usbHostClearInterfaceFeature (const uint8_t  addr,      const uint8_t endp,
-                                       const uint16_t feature,
+    int  usbHostClearInterfaceFeature (const uint8_t  addr,      const uint8_t  endp,
+                                       const uint16_t ifidx,     const uint16_t feature,
                                        const unsigned idle = DEFAULTIDLEDELAY);
 
-    int  usbHostSetInterfaceFeature   (const uint8_t  addr,      const uint8_t endp,
-                                       const uint16_t feature,
+    int  usbHostSetInterfaceFeature   (const uint8_t  addr,      const uint8_t  endp,
+                                       const uint16_t ifidx,     const uint16_t feature,
                                        const unsigned idle = DEFAULTIDLEDELAY);
 
     int  usbHostGetInterface          (const uint8_t  addr,      const uint8_t endp,
-                                       const uint16_t index,           uint8_t &altif,
+                                       const uint16_t ifidx,           uint8_t &altif,
                                        const unsigned idle = DEFAULTIDLEDELAY);
 
     int  usbHostSetInterface          (const uint8_t  addr,      const uint8_t endp,
-                                       const uint16_t index,     const uint8_t altif,
+                                       const uint16_t ifidx,     const uint8_t altif,
                                        const unsigned idle = DEFAULTIDLEDELAY);
 
     // ----------------------------------------------------------
@@ -214,9 +224,9 @@ public:
     // ----------------------------------------------------------
     // Data transfer methods
     // ----------------------------------------------------------
-    
+
     int  usbHostBulkDataOut           (const uint8_t  addr,      const uint8_t  endp,
-                                             uint8_t  data[],    const int      len, const int maxpktsize,
+                                             uint8_t* data,      const int      len, const int maxpktsize,
                                        const unsigned idle = DEFAULTIDLEDELAY);
 
     int  usbHostBulkDataIn            (const uint8_t  addr,      const uint8_t  endp,
@@ -224,19 +234,19 @@ public:
                                        const unsigned idle = DEFAULTIDLEDELAY);
 
     int  usbHostIsoDataOut            (const uint8_t  addr,      const uint8_t  endp,
-                                             uint8_t  data[],    const int      len, const int maxpktsize,
+                                             uint8_t* data,      const int      len, const int maxpktsize,
                                        const unsigned idle = DEFAULTIDLEDELAY);
-                                       
+
     int  usbHostIsoDataIn             (const uint8_t  addr,      const uint8_t  endp,
                                              uint8_t* data,      const int      len, const int maxpktsize,
                                        const unsigned idle = DEFAULTIDLEDELAY);
-                                       
+
     // ----------------------------------------------------------
     // Line control
     // ----------------------------------------------------------
-    
-    void usbHostSuspendDevice         (void) { apiSendIdle(MINSUSPENDCOUNT); }
-                                      
+
+    void usbHostSuspendDevice         (void) { keepalive = false; apiSendIdle(MINSUSPENDCOUNT); keepalive = true;}
+
     void usbHostResetDevice           (void) { apiSendReset(MINRSTCOUNT); }
 
     // -------------------------------------------------------------------------
@@ -309,6 +319,7 @@ private:
     uint64_t               framenum;
 
     bool                   epdata0[usbModel::MAXENDPOINTS][usbModel::NUMEPDIRS];
+
 
 };
 
