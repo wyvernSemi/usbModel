@@ -25,11 +25,21 @@
 
 #------------------------------------------------------
 # User modifiable flags
-#------------------------------------------------------
+
 USRFLAGS      = -DUSBTESTMODE
-ARCH          = -m32
 USRSRCDIR     = usercode
 USER_CPP      = VUserMain0.cpp VUserMain1.cpp
+
+#------------------------------------------------------
+# Check if questa and set ARCH for 64 bits, else 
+# assume modelsim and 32 bits
+#------------------------------------------------------
+
+ifeq ($(findstring questa, $(subst  _, , $(subst  /, , ${MODEL_TECH}))), questa)
+  ARCH=-m64
+else
+  ARCH=-m32
+endif
 
 #------------------------------------------------------
 # Definitions for VProc virtual processor
