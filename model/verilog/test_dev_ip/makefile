@@ -1,0 +1,271 @@
+###################################################################
+# Makefile for Virtual USB code in Modelsim
+#
+# Copyright (c) 2023 Simon Southwell.
+#
+# This file is part of usbModel pattern generator.
+#
+# This code is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# The code is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this code. If not, see <http://www.gnu.org/licenses/>.
+#
+###################################################################
+
+# MODEL_TECH environment variable must be set for pointing to
+# executable binary directory
+
+#------------------------------------------------------
+# User modifiable flags
+
+USRFLAGS      = -DUSBTESTMODE
+USRSRCDIR     = usercode
+USER_CPP      = VUserMain0.cpp
+DEVRSTCYCLES  = 6000
+
+#------------------------------------------------------
+# Check if questa and set ARCH for 64 bits, else 
+# assume modelsim and 32 bits
+#------------------------------------------------------
+
+ifeq ($(findstring questa, $(subst  _, , $(subst  /, , ${MODEL_TECH}))), questa)
+  ARCH=-m64
+else
+  ARCH=-m32
+endif
+
+#------------------------------------------------------
+# Definitions for VProc virtual processor
+#------------------------------------------------------
+
+#
+# Only need two virtual processor nodes
+#
+NUM_VPROC     = 2
+
+#
+# Location of VProc directory. Assumes in same directory as usbModel repository.
+# Update/override if located elsewhere.
+#
+VPROC_TOP     = ../../../../vproc
+
+#
+# Define the github repository URL for the VProc virtual processor
+#
+VPROC_REPO    = https://github.com/wyvernSemi/vproc.git
+
+#
+# Location of FPGA-USB-Device directory. Assumes in same directory as usbModel repository.
+# Update/override if located elsewhere.
+#
+DEVIP_TOP     = ../../../../FPGA-USB-Device
+
+#
+# Define the github repository URL for the FPGA-USB-Device IP
+#
+DEVIP_REPO    = https://github.com/WangXuan95/FPGA-USB-Device
+
+#
+# Name of file to modify for shortened reset
+#
+DEVIP_MOD     = usbfs_core_top.v
+
+#
+# USB VHost test definitions
+#
+USBVLOGDIR    = ../src
+PLIDIR        = ../pli
+SRCDIR        = ../../src
+WORKDIR       = work
+
+#------------------------------------------------------
+# User code definitions (non-modifiable)
+#------------------------------------------------------
+
+#
+# Find any user code header files (if any)
+#
+USRHDRS       = $(wildcard ${USRSRCDIR}/*.h)
+
+#
+# Get all the header files for the model source code
+#
+SRCHDRS       = $(wildcard ${SRCDIR}/*.h)
+
+#
+# Usb C++ auto-generated memory map for Verilog
+# accessible signals and registers
+#
+USBCMAP       = ${USRSRCDIR}/usbMap.h
+
+#------------------------------------------------------
+# PLI shared object definitions
+#------------------------------------------------------
+
+#
+# PLI C/C++ code definitions
+#
+PLI_SO        = VProc.so
+VPROC_LIB     = libvproc.a
+VPROCLIBPATH  = ${VPROC_TOP}/${VPROC_LIB}
+USBVLOGMAP    = ${USBVLOGDIR}/usbModel.vh
+
+#
+# All source files (model and user code)
+#
+ALLSRC        = ${SRCDIR}/*.cpp ${PLIDIR}/*.cpp ${USER_CPP:%.cpp=${USRSRCDIR}/%.cpp} ${USBCMAP}
+
+#------------------------------------------------------
+# Flags for simulator
+#------------------------------------------------------
+
+TOP           = test
+TOP_VC        = test.vc
+VSIMFLAGS     = -pli ${PLI_SO} ${TOP}
+VLOGFLAGS     = -quiet -incr +incdir+${VPROC_TOP} +incdir+${USBVLOGDIR} -f ${TOP_VC}
+
+#------------------------------------------------------
+# Flags for C compiler
+#------------------------------------------------------
+CC            = gcc
+C++           = g++
+CFLAGS        = ${ARCH} -fPIC                    \
+                -Wno-write-strings               \
+                -I${SRCDIR}                      \
+                -I${PLIDIR}                      \
+                -I${USRSRCDIR}                   \
+                -I${VPROC_TOP}/code              \
+                -I${MODEL_TECH}/../include       \
+                ${USRFLAGS}
+
+# Get OS type
+OSTYPE       :=$(shell uname)
+
+# Set OS specific variables between Linux and Windows (MinGW)
+ifeq (${OSTYPE}, Linux)
+  CFLAGS_SO   = -shared -lpthread -lrt -rdynamic -Wno-format-truncation
+else
+  CFLAGS_SO   = -shared -Wl,-export-all-symbols
+endif
+
+# C++ compilation standard
+CPPSTD        = -std=c+11
+
+#------------------------------------------------------
+# BUILD RULES
+#------------------------------------------------------
+
+#
+# Build the verilog and the PLI shared object by default
+#
+all: ${PLI_SO} verilog
+
+#
+# Check that the MODEL_TECH environment variable is defined
+#
+.PHONY: checkenv
+checkenv:
+ifndef MODEL_TECH
+	$(error MODEL_TECH is undefined)
+endif
+
+#
+# Verilog
+#
+.PHONY: verilog
+verilog: ${DEVIP_MOD}
+	@if [ ! -d ${WORKDIR} ]; then                \
+	  vlib ${WORKDIR};                           \
+    fi
+	@vlog ${VLOGFLAGS}
+
+#
+# PLI shared object
+#
+${PLI_SO}: checkenv ${VPROCLIBPATH} ${ALLSRC} ${SRCHDRS} ${USRHDRS}
+	@${C++} ${CFLAGS_SO} ${CFLAGS}               \
+	       -Wl,-whole-archive                    \
+ 	       ${VPROCLIBPATH}                       \
+           ${ALLSRC}                             \
+           -lpthread                             \
+           -L${MODEL_TECH}                       \
+           -lmtipli                              \
+	       -Wl,-no-whole-archive                 \
+	       -o $@
+
+#
+# VProc library.
+#
+${VPROCLIBPATH}: ${VPROC_TOP}
+	@${MAKE} --no-print-directory -C ${VPROC_TOP} MAX_NUM_VPROC=${NUM_VPROC} ARCHFLAG=${ARCH} USER_C="" ${VPROC_LIB}
+
+#
+# Checkout VProc from github if it doesn't exist at the specified location
+#
+${VPROC_TOP}:
+	@git clone ${VPROC_REPO} ${VPROC_TOP} --recursive
+
+#
+# Modify code for quick reset time for test
+#
+${DEVIP_MOD}: ${DEVIP_TOP}
+	@sed -e 's/RESET_CYCLES = 120000000.*/RESET_CYCLES = ${DEVRSTCYCLES}; \/\/ Auto-modified by usbModel\!\!/g' <${DEVIP_TOP}/RTL/usbfs_core/${DEVIP_MOD} > ${DEVIP_MOD}
+
+#
+# Checkout VProc from github if it doesn't exist at the specified location
+#
+${DEVIP_TOP}:
+	@git clone ${DEVIP_REPO} ${DEVIP_TOP} --recursive
+
+#
+# Auto-generate the C++ header from the Verilog header so they always match
+#
+${USBCMAP}: ${USBVLOGMAP}
+	@sed -e 's/`/#/g' -e 's/_USB_VH_/_USB_MAP_H_/g' < $^ > $@
+
+#------------------------------------------------------
+# EXECUTION RULES
+#------------------------------------------------------
+
+run: ${VPROCLIBPATH} verilog ${PLI_SO}
+	@vsim -c -GGUI_RUN=0 ${VSIMFLAGS} -do "run -all"
+
+sim: ${VPROCLIBPATH} verilog ${PLI_SO}
+	@vsim -c -GGUI_RUN=0 ${VSIMFLAGS}
+
+rungui: ${VPROCLIBPATH} verilog ${PLI_SO}
+	@if [ -e wave.do ]; then                                                \
+         vsim -gui -GGUI_RUN=1 -do wave.do ${VSIMFLAGS} -do "run -all";     \
+     else                                                                   \
+         vsim -gui -GGUI_RUN=1 ${VSIMFLAGS};                                \
+     fi
+
+simgui: ${VPROCLIBPATH} verilog ${PLI_SO}
+	@if [ -e wave.do ]; then                                                \
+         vsim -gui -GGUI_RUN=1 -do wave.do ${VSIMFLAGS};                    \
+     else                                                                   \
+         vsim -gui -GGUI_RUN=1 ${VSIMFLAGS};                                \
+     fi
+
+gui: rungui
+
+#------------------------------------------------------
+# CLEANING RULES
+#------------------------------------------------------
+
+clean:
+	@if [ -d "${WORKDIR}" ]; then                \
+	  vdel -all;                                 \
+     fi
+	@${MAKE} --no-print-directory -C ${VPROC_TOP} clean
+	@rm -rf ${PLI_SO} ${USBCMAP} *.wlf transcript work ${DEVIP_MOD}
+
+

@@ -1,0 +1,20 @@
+
+// USB
+../src/usbModel.v
+
+// USB FPGA-USB-Device
+../../../../FPGA-USB-Device/RTL/usbfs_core/usbfs_bitlevel.v
+../../../../FPGA-USB-Device/RTL/usbfs_core/usbfs_debug_monitor.v
+../../../../FPGA-USB-Device/RTL/usbfs_core/usbfs_debug_uart_tx.v
+../../../../FPGA-USB-Device/RTL/usbfs_core/usbfs_packet_rx.v
+../../../../FPGA-USB-Device/RTL/usbfs_core/usbfs_packet_tx.v
+../../../../FPGA-USB-Device/RTL/usbfs_core/usbfs_transaction.v
+#../../../../FPGA-USB-Device/RTL/usbfs_core/usbfs_core_top.v
+usbfs_core_top.v
+../../../../FPGA-USB-Device/RTL/usb_class/usb_serial_top.v
+
+// VProc
+../../../../vproc/f_VProc.v
+
+// Top level test module
+test.v
