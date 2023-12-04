@@ -31,7 +31,7 @@ USRSRCDIR     = usercode
 USER_CPP      = VUserMain0.cpp VUserMain1.cpp
 
 #------------------------------------------------------
-# Check if questa and set ARCH for 64 bits, else 
+# Check if questa and set ARCH for 64 bits, else
 # assume modelsim and 32 bits
 #------------------------------------------------------
 
@@ -221,7 +221,7 @@ rungui: ${VPROCLIBPATH} verilog ${PLI_SO}
 
 simgui: ${VPROCLIBPATH} verilog ${PLI_SO}
 	@if [ -e wave.do ]; then                                                \
-         vsim -gui -GGUI_RUN=1 -do wave.do ${VSIMFLAGS} -do "run -all";     \
+         vsim -gui -GGUI_RUN=1 -do wave.do ${VSIMFLAGS};                    \
      else                                                                   \
          vsim -gui -GGUI_RUN=1 ${VSIMFLAGS};                                \
      fi
