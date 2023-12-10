@@ -206,7 +206,7 @@ namespace usbModel
         {
             bLength                    = 0x12;                         // 18 Bytes
             bDescriptorType            = DEVICE_DESCRIPTOR_TYPE;       // 0x01 = device descriptor
-            bcdUSB                     = 0x1001;                       // USB 1.1
+            bcdUSB                     = 0x0110;                       // USB 1.1
             bDeviceClass               = 0x02;                         // CDC
             bDeviceSubClass            = 0x00;                         // unused
             bDeviceProtocol            = 0x00;                         // unused

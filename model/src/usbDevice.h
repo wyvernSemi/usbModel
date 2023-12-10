@@ -92,6 +92,7 @@ public:
                 {false, true},  {false, false}, {false, false}, {false, false},
                 {false, false}, {false, false}, {false, false}, {false, false}},
         framenum(0),
+        suspended(false),
         datacb(datacbIn)
     {
         strdesc[0].bLength    = 6; // bLength + bDescriptorType bytes plus two wLANGID entries (2 bytes each)
@@ -221,6 +222,9 @@ private:
 
         // Reset the frame number
         framenum = 0;
+        
+        // Clear suspension state
+        suspended = false;
 
 
         for (int edx = 0; edx < usbModel::MAXENDPOINTS; edx++)
@@ -251,6 +255,8 @@ private:
     int          sendPktToHost         (const int pid, const uint16_t framenum, const int     idle = DEFAULT_IDLE);                      // SOF
     int          sendPktToHost         (const int pid, const int      idle = DEFAULT_IDLE);                                              // Handshake
 
+    int          controlStatusStage    (const bool instatus, const uint8_t endp);
+
     //-------------------------------------------------------------
     // Method to wait for the receipt of a particular packet type
     //-------------------------------------------------------------
@@ -279,10 +285,10 @@ private:
     // Methods for handling endpoint data0/1
     //-------------------------------------------------------------
 
-    inline int  epIdx                 (const int endp) {return endp & 0xf;};
-    inline bool epDirIn               (const int endp) {return (endp >> 7) & 1;};
-    inline int  dataPid               (const int endp) {return epdata0[epIdx(endp)][epDirIn(endp)] ? usbModel::PID_DATA_0 : usbModel::PID_DATA_1;};
-    inline int  dataPidUpdate         (const int endp, const bool iso = false)
+    inline int   epIdx                 (const int endp) {return endp & 0xf;};
+    inline bool  epDirIn               (const int endp) {return (endp >> 7) & 1;};
+    inline int   dataPid               (const int endp) {return epdata0[epIdx(endp)][epDirIn(endp)] ? usbModel::PID_DATA_0 : usbModel::PID_DATA_1;};
+    inline int   dataPidUpdate         (const int endp, const bool iso = false)
     {
         int dpid = dataPid(endp);
         if (!iso)
@@ -323,6 +329,8 @@ private:
 
     // Last SOF frame number
     uint16_t                framenum;
+    
+    bool                    suspended;
 
 
 };

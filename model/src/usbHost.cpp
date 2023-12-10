@@ -95,8 +95,14 @@ int usbHost::usbHostWaitForConnection (const unsigned polldelay, const unsigned 
 
 int usbHost::usbHostGetDeviceStatus (const uint8_t addr, const uint8_t endp, uint16_t &status, const unsigned idle)
 {
+    int error = usbModel::USBOK;
 
-    return getStatus(addr, endp, usbModel::USB_DEV_REQTYPE_GET, status, 0, 0, idle);
+    if ((error = getStatus(addr, endp, usbModel::USB_DEV_REQTYPE_GET, status, 0, 0, idle)) == usbModel::USBOK)
+    {
+        error = sendControlStatus(addr, endp, true, idle);
+    }
+
+    return error;
 }
 
 // -------------------------------------------------------------------------
@@ -150,6 +156,7 @@ int usbHost::usbHostGetDeviceConfig (const uint8_t addr, const uint8_t endp, uin
         {
             dataPidUpdate(endp);
             cfgstate = rxdata[0];
+            error = sendControlStatus(addr, endp, true, idle);
         }
     }
 
@@ -249,6 +256,8 @@ int usbHost::usbHostGetStrDescriptor (const uint8_t  addr,     const uint8_t  en
                 std::memcpy(data, rxdata, receivedbytes);
                 rxlen = receivedbytes;
             }
+
+            error = sendControlStatus(addr, endp, true, idle);
         }
     }
 
@@ -330,7 +339,11 @@ int usbHost::usbHostGetDeviceDescriptor (const uint8_t  addr,   const uint8_t  e
         {
             std::memcpy(data, rxdata, reqlen);
             rxlen = receivedbytes;
+
+            // Do status stage (OUT)
+            error = sendControlStatus (addr, endp, true, idle);
         }
+
     }
 
     return error;
@@ -412,6 +425,9 @@ int usbHost::usbHostGetConfigDescriptor  (const uint8_t  addr,   const uint8_t  
         {
             std::memcpy(data, rxdata, reqlen);
             rxlen = receivedbytes;
+
+            // Do status stage (OUT)
+            error = sendControlStatus (addr, endp, true, idle);
         }
     }
 
@@ -440,13 +456,22 @@ int usbHost::usbHostGetConfigDescriptor  (const uint8_t  addr,   const uint8_t  
 
 int  usbHost::usbHostSetDeviceAddress (const uint8_t addr, const uint8_t endp, const uint16_t devaddr, const unsigned idle)
 {
-    return sendStandardRequest(addr, endp,
-                               usbModel::USB_DEV_REQTYPE_SET,
-                               usbModel::USB_REQ_SET_ADDRESS,
-                               devaddr,                                 // wValue
-                               0,                                       // wIndex
-                               0,                                       // wLength
-                               idle);
+    int error = usbModel::USBOK;
+
+    if ((error = sendStandardRequest(addr, endp,
+                                     usbModel::USB_DEV_REQTYPE_SET,
+                                     usbModel::USB_REQ_SET_ADDRESS,
+                                     devaddr,                                 // wValue
+                                     0,                                       // wIndex
+                                     0,                                       // wLength
+                                     idle)) == usbModel::USBOK)
+    {
+        // Do status stage (IN)
+        error = sendControlStatus (addr, endp, false, idle);
+    }
+
+
+    return error;
 }
 
 // -------------------------------------------------------------------------
@@ -471,13 +496,21 @@ int  usbHost::usbHostSetDeviceAddress (const uint8_t addr, const uint8_t endp, c
 
 int usbHost::usbHostSetDeviceConfig (const uint8_t  addr, const uint8_t  endp, const uint8_t index, const unsigned idle)
 {
-    return sendStandardRequest(addr, endp,
-                               usbModel::USB_DEV_REQTYPE_SET,
-                               usbModel::USB_REQ_SET_CONFIG,
-                               (uint16_t)index,                         // wValue
-                               0,                                       // wIndex
-                               0,                                       // wLength
-                               idle);
+    int error = usbModel::USBOK;
+
+    if ((error = sendStandardRequest(addr, endp,
+                                     usbModel::USB_DEV_REQTYPE_SET,
+                                     usbModel::USB_REQ_SET_CONFIG,
+                                     (uint16_t)index,                         // wValue
+                                     0,                                       // wIndex
+                                     0,                                       // wLength
+                                     idle)) == usbModel::USBOK)
+    {
+        // Do status stage (IN)
+        error = sendControlStatus (addr, endp, false, idle);
+    }
+
+    return error;
 }
 
 // -------------------------------------------------------------------------
@@ -504,13 +537,21 @@ int usbHost::usbHostClearDeviceFeature (const uint8_t  addr, const uint8_t endp,
                                         const uint16_t feature,
                                         const unsigned idle)
 {
-    return sendStandardRequest(addr, endp,
-                               usbModel::USB_DEV_REQTYPE_SET,
-                               usbModel::USB_REQ_CLEAR_FEATURE,
-                               feature,                                 // wValue
-                               0,                                       // wIndex
-                               0,                                       // wLength
-                               idle);
+    int error = usbModel::USBOK;
+
+    if ((error = sendStandardRequest(addr, endp,
+                                     usbModel::USB_DEV_REQTYPE_SET,
+                                     usbModel::USB_REQ_CLEAR_FEATURE,
+                                     (uint16_t)feature,                       // wValue
+                                     0,                                       // wIndex
+                                     0,                                       // wLength
+                                     idle)) == usbModel::USBOK)
+    {
+        // Do status stage (IN)
+        error = sendControlStatus (addr, endp, false, idle);
+    }
+
+    return error;
 }
 
 // -------------------------------------------------------------------------
@@ -537,13 +578,21 @@ int usbHost::usbHostSetDeviceFeature (const uint8_t  addr, const uint8_t endp,
                                       const uint16_t feature,
                                       const unsigned idle)
 {
-    return sendStandardRequest(addr, endp,
-                               usbModel::USB_DEV_REQTYPE_SET,
-                               usbModel::USB_REQ_SET_FEATURE,
-                               feature,                                 // wValue
-                               0,                                       // wIndex
-                               0,                                       // wLength
-                               idle);
+    int error = usbModel::USBOK;
+
+    if ((error = sendStandardRequest(addr, endp,
+                                     usbModel::USB_DEV_REQTYPE_SET,
+                                     usbModel::USB_REQ_SET_FEATURE,
+                                     (uint16_t)feature,                       // wValue
+                                     0,                                       // wIndex
+                                     0,                                       // wLength
+                                     idle)) == usbModel::USBOK)
+    {
+        // Do status stage (IN)
+        error = sendControlStatus (addr, endp, false, idle);
+    }
+
+    return error;
 }
 
 // -------------------------------------------------------------------------
@@ -569,7 +618,15 @@ int usbHost::usbHostSetDeviceFeature (const uint8_t  addr, const uint8_t endp,
 
 int usbHost::usbHostGetInterfaceStatus (const uint8_t addr, const uint8_t endp, const uint16_t ifidx, uint16_t &status, const unsigned idle)
 {
-    return getStatus(addr, endp, usbModel::USB_IF_REQTYPE_GET, status, 0, ifidx, idle);
+    int error = usbModel::USBOK;
+
+    if ((error = getStatus(addr, endp, usbModel::USB_IF_REQTYPE_GET, status, 0, ifidx, idle)) == usbModel::USBOK)
+    {
+        // Do status stage (OUT)
+        error = sendControlStatus (addr, endp, true, idle);
+    }
+
+    return error;
 }
 
 // -------------------------------------------------------------------------
@@ -596,13 +653,21 @@ int usbHost::usbHostClearInterfaceFeature (const uint8_t  addr,    const uint8_t
                                            const uint16_t ifidx,   const uint16_t feature,
                                            const unsigned idle)
 {
-    return sendStandardRequest(addr, endp,
-                               usbModel::USB_IF_REQTYPE_SET,
-                               usbModel::USB_REQ_CLEAR_FEATURE,
-                               feature,                                 // wValue
-                               ifidx,                                   // wIndex
-                               0,                                       // wLength
-                               idle);
+    int error = usbModel::USBOK;
+
+    if ((error = sendStandardRequest(addr, endp,
+                                     usbModel::USB_IF_REQTYPE_SET,
+                                     usbModel::USB_REQ_CLEAR_FEATURE,
+                                     feature,                                 // wValue
+                                     ifidx,                                   // wIndex
+                                     0,                                       // wLength
+                                     idle)) == usbModel::USBOK)
+    {
+        // Do status stage (IN)
+        error = sendControlStatus (addr, endp, false, idle);
+    }
+
+    return error;
 }
 
 // -------------------------------------------------------------------------
@@ -629,13 +694,21 @@ int usbHost::usbHostSetInterfaceFeature (const uint8_t  addr,      const uint8_t
                                          const uint16_t ifidx,     const uint16_t feature,
                                          const unsigned idle)
 {
-    return sendStandardRequest(addr, endp,
+    int error = usbModel::USBOK;
+
+    if ((error = sendStandardRequest(addr, endp,
                                usbModel::USB_IF_REQTYPE_SET,
                                usbModel::USB_REQ_SET_FEATURE,
                                feature,                                 // wValue
                                ifidx,                                   // wIndex
                                0,                                       // wLength
-                               idle);
+                               idle)) == usbModel::USBOK)
+   {
+       // Do status stage (IN)
+       error = sendControlStatus (addr, endp, false, idle);
+   }
+
+   return error;
 }
 
 // -------------------------------------------------------------------------
@@ -691,6 +764,9 @@ int usbHost::usbHostGetInterface (const uint8_t  addr,      const uint8_t endp,
         {
             altif = rxdata[0];
             dataPidUpdate(endp);
+
+            // Do status stage (OUT)
+            error = sendControlStatus (addr, endp, true, idle);
         }
     }
 
@@ -721,13 +797,21 @@ int usbHost::usbHostSetInterface (const uint8_t  addr,      const uint8_t endp,
                                   const uint16_t ifidx,     const uint8_t altif,
                                   const unsigned idle)
 {
-    return sendStandardRequest(addr, endp,
+    int error = usbModel::USBOK;
+
+    if ((error = sendStandardRequest(addr, endp,
                                usbModel::USB_IF_REQTYPE_SET,
                                usbModel::USB_REQ_SET_INTERFACE,
                                altif,                               // wValue
                                ifidx,                               // wIndex
                                0,                                   // wLength
-                               idle);
+                               idle)) == usbModel::USBOK)
+    {
+        // Do status stage (IN)
+        error = sendControlStatus (addr, endp, false, idle);
+    }
+
+    return error;
 }
 
 // -------------------------------------------------------------------------
@@ -752,7 +836,15 @@ int usbHost::usbHostSetInterface (const uint8_t  addr,      const uint8_t endp,
 int usbHost::usbHostGetEndpointStatus (const uint8_t  addr,    const uint8_t  endp,
                                              uint16_t &status, const unsigned idle)
 {
-    return getStatus(addr, endp, usbModel::USB_EP_REQTYPE_GET, status, 0, endp, idle);
+    int error = usbModel::USBOK;
+
+    if ((error = getStatus(addr, endp, usbModel::USB_EP_REQTYPE_GET, status, 0, endp, idle)) == usbModel::USBOK)
+    {
+        // Do status stage (OUT)
+        error = sendControlStatus (addr, endp, true, idle);
+    }
+
+    return error;
 }
 
 // -------------------------------------------------------------------------
@@ -779,13 +871,21 @@ int usbHost::usbHostClearEndpointFeature (const uint8_t  addr,    const uint8_t 
                                           const uint16_t feature,
                                           const unsigned idle)
 {
-    return sendStandardRequest(addr, endp,
+    int error = usbModel::USBOK;
+
+    if ((sendStandardRequest(addr, endp,
                                usbModel::USB_EP_REQTYPE_SET,
                                usbModel::USB_REQ_CLEAR_FEATURE,
                                feature,                                 // wValue
                                0,                                       // wIndex
                                0,                                       // wLength
-                               idle);
+                               idle)) == usbModel::USBOK)
+    {
+        // Do status stage (IN)
+        error = sendControlStatus (addr, endp, false, idle);
+    }
+
+    return error;
 }
 
 // -------------------------------------------------------------------------
@@ -812,13 +912,21 @@ int usbHost::usbHostSetEndpointFeature (const uint8_t  addr,    const uint8_t en
                                         const uint16_t feature,
                                         const unsigned idle)
 {
-    return sendStandardRequest(addr, endp,
+    int error = usbModel::USBOK;
+
+    if ((sendStandardRequest(addr, endp,
                                usbModel::USB_EP_REQTYPE_SET,
                                usbModel::USB_REQ_SET_FEATURE,
                                feature,                                 // wValue
                                0,                                       // wIndex
                                0,                                       // wLength
-                               idle);
+                               idle)) == usbModel::USBOK)
+    {
+        // Do status stage (IN)
+        error = sendControlStatus (addr, endp, false, idle);
+    }
+
+    return error;
 }
 
 // -------------------------------------------------------------------------
@@ -874,6 +982,9 @@ int usbHost::usbHostGetEndpointSynchFrame (const uint8_t  addr,      const uint8
         {
             framenum = (uint16_t)rxdata[0] | (((uint16_t)rxdata[1]) << 8);
             dataPidUpdate(endp);
+
+            // Do status stage (OUT)
+            error = sendControlStatus (addr, endp, true, idle);
         }
     }
 
@@ -1439,6 +1550,37 @@ int usbHost::sendStandardRequest(const uint8_t  addr,    const uint8_t  endp,
     // After sending a setup token and DATA0 packet, the next data pid will be PID_DATA_1
     epdata0[epIdx(endp)][epDirIn(endp)] = false;
 
+    error = waitForAck();
+
+    return error;
+}
+
+// -------------------------------------------------------------------------
+// waitForAck
+//
+// The method waits to receive an acknowledge packet. It will detected
+// a disconnection, reset or suspension while waiting, and will flags
+// any error conditions.
+//
+// The possible return values are:
+//
+//   A bit count (return integer >= 0)
+//   usbModel::DISCONNECTED
+//   usbModel::USBRESET
+//   usbModel::USBSUSPEND
+//   usbModel::USBNORESPONSE
+//   usbModel::USBERROR
+//
+// -------------------------------------------------------------------------
+
+int usbHost::waitForAck ()
+{
+    int                  error = usbModel::USBOK;
+    int                  status;
+    int                  pid;
+    int                  databytes;
+    uint32_t             args[4];
+
     do
     {
         // Wait for ACK
@@ -1446,20 +1588,19 @@ int usbHost::sendStandardRequest(const uint8_t  addr,    const uint8_t  endp,
 
         if (status == usbModel::USBDISCONNECTED)
         {
-            USBERRMSG ("***ERROR: sendStandardRequest: no device connected\n");
+            USBERRMSG ("***ERROR: waitForAck: no device connected\n");
             error = status;
         }
         else if (status == usbModel::USBNORESPONSE || status == usbModel::USBERROR)
         {
-            USBERRMSG ("***ERROR: sendStandardRequest: bad status waiting for packet (%d)\n", status);
+            USBERRMSG ("***ERROR: waitForAck: bad status waiting for packet (%d)\n", status);
             error = status;
         }
         else
         {
-
             if ((status = usbPktDecode(nrzi, pid, args, rxdata, databytes)) != usbModel::USBOK)
             {
-                USBERRMSG("***ERROR: sendStandardRequest: received bad packet waiting for ACK\n");
+                USBERRMSG("***ERROR: waitForAck: received bad packet waiting for ACK\n");
                 usbPktGetErrMsg(sbuf);
                 USBERRMSG("%s\n", sbuf);
                 error = status;
@@ -1468,13 +1609,76 @@ int usbHost::sendStandardRequest(const uint8_t  addr,    const uint8_t  endp,
 
             if (pid != usbModel::PID_HSHK_ACK && pid != usbModel::PID_HSHK_NAK)
             {
-                USBERRMSG("***ERROR: sendStandardRequest: received unexpected packet ID (0x%02x)\n", pid);
+                USBERRMSG("***ERROR: waitForAck: received unexpected packet ID (0x%02x)\n", pid);
                 error = usbModel::USBERROR;
                 break;
             }
         }
 
     } while (pid == usbModel::PID_HSHK_NAK && !error);
+
+    return error;
+}
+
+// -------------------------------------------------------------------------
+// sendControlStatus
+//
+// Send a control transaction's status phase.
+//
+// Method sends either an OUT or IN zero data length status phase to endpoint
+// selected by addr and endp (should be 0 from control transactions), as 
+// selected by out parameter.  An optional idle argument specifies a period
+// to wait before instigating the transaction (default 4 clock periods).
+//
+// The method returns usbModel::USBOK on success. If an error occurred during
+// the transaction, then usbModel::USBERROR is returned, or if a device
+// disconnection occurred, then usbModel::USBDISCONNECTED is returned.
+// If a valid, but unsupported, response packet is received from the device
+// then it returns usbModel::USBUNSUPPORTED. If a timeout occurred waiting
+// for a response packet, then usbModel::USBNORESPONSE is returned.
+//
+// -------------------------------------------------------------------------
+
+int  usbHost::sendControlStatus (const uint8_t  addr, const uint8_t  endp, const bool out,
+                                 const unsigned idle)
+{
+    int error = usbModel::USBOK;
+    int status;
+    int databytes;
+
+    // OUT status phase requested
+    if (out)
+    {
+        // Send OUT token
+        sendTokenToDevice(usbModel::PID_TOKEN_OUT, addr, endp, idle);
+
+        // Send zero length DATA1
+        if (error = sendDataToDevice(usbModel::PID_DATA_1, NULL, 0, idle))
+        {
+            return error;
+        }
+
+        // After sending a zero length DATA1 packet, the next data pid will be PID_DATA_0
+        epdata0[epIdx(endp)][epDirIn(endp)] = true;
+
+        // wait for an ACK
+        error = waitForAck();
+    }
+    else
+    {
+        // Send IN token
+        sendTokenToDevice(usbModel::PID_TOKEN_IN, addr, endp, idle);
+
+        // Receive DATA1 zero length packet and acknowledge
+        if ((status = getDataFromDevice(usbModel::PID_DATA_1, rxdata, databytes, false, idle)) != usbModel::USBOK)
+        {
+            error = status;
+        }
+        else
+        {
+            dataPidUpdate(endp);
+        }
+    }
 
     return error;
 }
@@ -1534,7 +1738,7 @@ int usbHost::getStatus (const uint8_t addr, const uint8_t endp, const uint8_t ty
 // -------------------------------------------------------------------------
 // checkConnected
 //
-// Method to retuen the status of the line with regard to a device being
+// Method to return the status of the line with regard to a device being
 // connected or not. Returns true if a connected device, else returns
 // false.
 //
@@ -1597,9 +1801,9 @@ void usbHost::checkSof (const unsigned idle)
 //
 // The type of the edcriptor to extract is given by desctype. The decidx
 // indexes a descriptor if the type could have more than one. For class
-// specific descriptors, this should be set to the sub-class value. If 
+// specific descriptors, this should be set to the sub-class value. If
 // there is no index or sub-class, then this shoud be set to
-// usbModel::NOT_VALID. The raw descriptor data buffer pointer is passed 
+// usbModel::NOT_VALID. The raw descriptor data buffer pointer is passed
 // in as rawdata, and a length to return is specified in len. The extracted
 // data is returned in the buffer pointed to by descdata.
 //
@@ -1617,8 +1821,8 @@ int usbHost::usbHostFindDescriptor (const int desctype, const int descidx, const
     {
         int bLength          = rawdata[idx + 0];
         int bDecriptorType   = rawdata[idx + 1];
-        int descIndex        = rawdata[idx + 2]; 
-        
+        int descIndex        = rawdata[idx + 2];
+
         if (bDecriptorType == desctype && (descidx < 0 || descidx == descIndex))
         {
             if ((idx + bLength) <= len)

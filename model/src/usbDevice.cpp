@@ -170,12 +170,17 @@ int usbDevice::waitForExpectedPacket(const int pktType, int &pid, uint32_t* args
         else if (status == usbModel::USBSUSPEND)
         {
             // If suspension seen, this device model does nothing
-            USBDISPPKT ( "  %s SEEN SUSPEND\n", name.c_str());
+            if (!suspended)
+            {
+                USBDISPPKT ( "  %s SEEN SUSPEND\n", name.c_str());
+            }
+            suspended = true;
             continue;
         }
 
         if (usbPktDecode(nrzi, pid, args, data, databytes) != usbModel::USBOK)
         {
+            suspended = false;
 
             for(int i = 0; i < databytes; i++)
                 USBDEVDEBUG("%02x ", data[i]);
@@ -342,14 +347,14 @@ int usbDevice::sendPktToHost(const int pid, const int idle)
     if (pid != usbModel::PID_HSHK_ACK && pid != usbModel::PID_HSHK_NAK && pid != usbModel::PID_HSHK_STALL)
     {
         USBDEVDEBUG ("<== sendPktToHost: HSHK seen invalid PID\n");
-        
+
         error = usbModel::USBERROR;
         USBERRMSG("sendPktToHost(HANDSHAKE): Invalid pid for packet type (0x%02x)", pid);
     }
     else
     {
         USBDEVDEBUG("<== sendPktToHost: sending HSHK packet to host\n");
-        
+
         // Generate packet
         int numbits = usbPktGen(nrzi, pid);
 
@@ -651,12 +656,15 @@ int  usbDevice::processSOF(const uint32_t args[], const int idle)
 
 int usbDevice::handleDevReq(const usbModel::setupRequest* sreq, const uint8_t endp, const int idle)
 {
+    int                  error = usbModel::USBOK;
+
     int                  pid;
     uint32_t             args[usbModel::MAXNUMARGS];
     int                  databytes;
     int                  datasize;
     int                  index;
     bool                 cfgstate;
+    bool                 instatus;
 
     uint8_t              desctype;
     uint8_t              descidx;
@@ -666,6 +674,9 @@ int usbDevice::handleDevReq(const usbModel::setupRequest* sreq, const uint8_t en
     switch(sreq->bRequest)
     {
     case usbModel::USB_REQ_GET_STATUS:
+
+        // Requires OUT status stage
+        instatus = false;
 
         // Generate an ACK handshake for the SETUP data
         sendPktToHost(usbModel::PID_HSHK_ACK, idle);
@@ -684,10 +695,13 @@ int usbDevice::handleDevReq(const usbModel::setupRequest* sreq, const uint8_t en
                  SELF_POWERED_STATE  ? 1 : 0);
 
         // Send the response to the GET_STATUS command
-        return sendGetResp (sreq, buf, datasize, endp, sbuf);
+        error = sendGetResp (sreq, buf, datasize, endp, sbuf);
         break;
 
     case usbModel::USB_REQ_CLEAR_FEATURE:
+
+        // Requires IN status stage
+        instatus = true;
 
         // Generate an ACK handshake for the SETUP data
         sendPktToHost(usbModel::PID_HSHK_ACK, idle);
@@ -699,6 +713,9 @@ int usbDevice::handleDevReq(const usbModel::setupRequest* sreq, const uint8_t en
 
     case usbModel::USB_REQ_SET_FEATURE:
 
+        // Requires IN status stage
+        instatus = true;
+
         // Generate an ACK handshake for the SETUP data
         sendPktToHost(usbModel::PID_HSHK_ACK, idle);
         dataPidUpdate(endp);
@@ -708,6 +725,9 @@ int usbDevice::handleDevReq(const usbModel::setupRequest* sreq, const uint8_t en
         break;
 
     case usbModel::USB_REQ_SET_ADDRESS:
+
+        // Requires IN status stage
+        instatus = true;
 
         // Generate an ACK handshake for the SETUP data
         sendPktToHost(usbModel::PID_HSHK_ACK, idle);
@@ -720,6 +740,9 @@ int usbDevice::handleDevReq(const usbModel::setupRequest* sreq, const uint8_t en
         break;
 
     case usbModel::USB_REQ_GET_DESCRIPTOR:
+
+        // Requires OUT status stage
+        instatus = false;
 
         // Extract the descriptor type (upper bytes) and index (lower byte)
         // from the wValue field.
@@ -743,10 +766,13 @@ int usbDevice::handleDevReq(const usbModel::setupRequest* sreq, const uint8_t en
             snprintf(sbuf, usbModel::ERRBUFSIZE,"  %s RX DEV REQ: GET DEVICE DESCRIPTOR (wLength = %d)\n", name.c_str(), sreq->wLength);
 
             // Send the response to the GET_DESCRIPTOR (DEVICE) command
-            return sendGetResp(sreq, (uint8_t*)&devdesc, datasize, endp, sbuf);
+            error = sendGetResp(sreq, (uint8_t*)&devdesc, datasize, endp, sbuf);
             break;
 
         case usbModel::CONFIG_DESCRIPTOR_TYPE:
+
+            // Requires OUT status stage
+            instatus = false;
 
             // Generate an ACK handshake for the SETUP data
             sendPktToHost(usbModel::PID_HSHK_ACK, idle);
@@ -760,10 +786,13 @@ int usbDevice::handleDevReq(const usbModel::setupRequest* sreq, const uint8_t en
             snprintf(sbuf, usbModel::ERRBUFSIZE,"  %s RX DEV REQ: GET CONFIG DESCRIPTOR (wLength = %d)\n", name.c_str(), sreq->wLength);
 
             // Send the response to the GET_DESCRIPTOR (CONFIG) command
-            return sendGetResp(sreq, cfgalldesc.rawbytes, datasize, endp, sbuf);
+            error = sendGetResp(sreq, cfgalldesc.rawbytes, datasize, endp, sbuf);
             break;
 
         case usbModel::STRING_DESCRIPTOR_TYPE:
+
+            // Requires OUT status stage
+            instatus = false;
 
             // Generate an ACK handshake for the SETUP data
             sendPktToHost(usbModel::PID_HSHK_ACK, idle);
@@ -777,31 +806,14 @@ int usbDevice::handleDevReq(const usbModel::setupRequest* sreq, const uint8_t en
             snprintf(sbuf, usbModel::ERRBUFSIZE,"  %s RX DEV REQ: GET STRING DESCRIPTOR (wLength = %d)\n", name.c_str(), sreq->wLength);
 
             // Send the response to the GET_DESCRIPTOR (STRING) command
-            return sendGetResp(sreq, (uint8_t*)&strdesc[descidx], datasize, endp, sbuf);
+            error = sendGetResp(sreq, (uint8_t*)&strdesc[descidx], datasize, endp, sbuf);
             break;
 
         case usbModel::IF_DESCRIPTOR_TYPE:
-
-            // Generate an ACK handshake for the SETUP data
-            sendPktToHost(usbModel::PID_HSHK_ACK, idle);
-            dataPidUpdate(endp);
-
-            break;
-
         case usbModel::EP_DESCRIPTOR_TYPE:
-
-            // Generate an ACK handshake for the SETUP data
-            sendPktToHost(usbModel::PID_HSHK_ACK, idle);
-            dataPidUpdate(endp);
-
-            break;
-
         case usbModel::CS_IF_DESCRIPTOR_TYPE:
-
-            // Generate an ACK handshake for the SETUP data
-            sendPktToHost(usbModel::PID_HSHK_ACK, idle);
-            dataPidUpdate(endp);
-
+            // Can't access interface and endpoint descriptors with a get GET DESCRIPTOR
+            error = usbModel::USBERROR;
             break;
 
         default:
@@ -810,12 +822,16 @@ int usbDevice::handleDevReq(const usbModel::setupRequest* sreq, const uint8_t en
             // Generate an STALL handshake for the SETUP data
             ephalted[usbModel::CONTROL_EP & 0xf][(usbModel::CONTROL_EP >> 7) & 1] = true;
             sendPktToHost(usbModel::PID_HSHK_STALL, idle);
-            return usbModel::USBERROR;
+            error = usbModel::USBERROR;
 
             break;
         }
+        break;
 
     case usbModel::USB_REQ_SET_DESCRIPTOR:
+
+        // Requires IN status stage
+        instatus = true;
 
         // Generate an ACK handshake for the SETUP data
         sendPktToHost(usbModel::PID_HSHK_ACK, idle);
@@ -827,6 +843,9 @@ int usbDevice::handleDevReq(const usbModel::setupRequest* sreq, const uint8_t en
 
     // Return deviceConfigured state
     case usbModel::USB_REQ_GET_CONFIG:
+
+        // Requires OUT status stage
+        instatus = false;
 
         // Generate an ACK handshake for the SETUP data
         sendPktToHost(usbModel::PID_HSHK_ACK, idle);
@@ -840,11 +859,14 @@ int usbDevice::handleDevReq(const usbModel::setupRequest* sreq, const uint8_t en
         // Construct a formatted output string
         snprintf(sbuf, usbModel::ERRBUFSIZE,"  %s RX DEV REQ: GET DEVICE CONFIGURATION (index=%d)\n", name.c_str(), (sreq->wValue & 0xff));
 
-        return sendGetResp(sreq, (uint8_t*)&cfgstate, datasize, endp, sbuf);
+        error = sendGetResp(sreq, (uint8_t*)&cfgstate, datasize, endp, sbuf);
 
         break;
 
     case usbModel::USB_REQ_SET_CONFIG:
+
+        // Requires IN status stage
+        instatus = true;
 
         // Generate an ACK handshake for the SETUP data
         sendPktToHost(usbModel::PID_HSHK_ACK, idle);
@@ -866,7 +888,69 @@ int usbDevice::handleDevReq(const usbModel::setupRequest* sreq, const uint8_t en
         break;
     }
 
-    return usbModel::USBOK;
+    // Do control status stage
+    if (error == usbModel::USBOK)
+    {
+        // Do status stage
+        error = controlStatusStage(instatus, endp);
+    }
+
+    return error;
+}
+
+//-------------------------------------------------------------
+//  controlStatusStage
+//
+// Handle a control transaction's status stage. If instatus
+// argument is true, method waits for an IN token and
+// repsonds with an zero length DATA1 packet and thne waits
+// for an ACK. If instatus is false, the methods waits for an OUT
+// token, and then waits for a zero length DATA1 packet. This
+// packet is then acknowledged.
+//
+// The methods will return usbModel::USBOK if successful, else
+// usbModel::USBERROR on bad received packets or unexpected
+// received PIDs (if checking).
+//
+//-------------------------------------------------------------
+
+int usbDevice::controlStatusStage(const bool instatus, const uint8_t endp)
+{
+    int      error = usbModel::USBOK;
+
+    int      pid;
+    uint32_t args[usbModel::MAXNUMARGS];
+    int      databytes;
+
+    if (instatus)
+    {
+        // Wait for IN packet
+        if ((error = waitForExpectedPacket (usbModel::PID_TOKEN_IN, pid, args, rxdata, databytes)) == usbModel::USBOK)
+        {
+            // Send zero length data packet
+            sendPktToHost (usbModel::PID_DATA_1, rxdata, 0);
+
+            // Wait for ACK
+            error = waitForExpectedPacket (usbModel::PID_HSHK_ACK, pid, args, rxdata, databytes);
+        }
+    }
+    else
+    {
+        // Wait for OUT packet
+        if ((error = waitForExpectedPacket (usbModel::PID_TOKEN_OUT, pid, args, rxdata, databytes)) == usbModel::USBOK)
+        {
+            // Wait for zero length data packet
+            if ((error = waitForExpectedPacket (dataPid(endp), pid, args, rxdata, databytes)) == usbModel::USBOK)
+            {
+                dataPidUpdate(endp);
+
+                // Send ACK
+                sendPktToHost (usbModel::PID_HSHK_ACK);
+            }
+        }
+    }
+
+    return error;
 }
 
 //-------------------------------------------------------------
@@ -889,14 +973,19 @@ int usbDevice::handleDevReq(const usbModel::setupRequest* sreq, const uint8_t en
 
 int usbDevice::handleIfReq(const usbModel::setupRequest* sreq, const uint8_t endp, const int idle)
 {
-    int datasize;
+    int     error = usbModel::USBOK;
+    int     datasize;
     uint8_t buf[2];
+    bool    instatus;
 
     USBDEVDEBUG("handleIfReq: bRequest=0x%02x\n", sreq->bRequest);
 
     switch(sreq->bRequest)
     {
     case usbModel::USB_REQ_GET_STATUS:
+
+        // Requires OUT status stage
+        instatus = false;
 
         // Generate an ACK handshake for the SETUP data
         sendPktToHost(usbModel::PID_HSHK_ACK, idle);
@@ -913,10 +1002,13 @@ int usbDevice::handleIfReq(const usbModel::setupRequest* sreq, const uint8_t end
         snprintf(sbuf, usbModel::ERRBUFSIZE,"  %s RX IF REQ: GET STATUS\n", name.c_str());
 
         // Send the response to the GET_STATUS command
-        return sendGetResp (sreq, buf, datasize, endp, sbuf);
+        error = sendGetResp (sreq, buf, datasize, endp, sbuf);
         break;
 
     case usbModel::USB_REQ_CLEAR_FEATURE:
+
+        // Requires IN status stage
+        instatus = true;
 
         // Generate an ACK handshake for the SETUP data
         sendPktToHost(usbModel::PID_HSHK_ACK, idle);
@@ -928,6 +1020,9 @@ int usbDevice::handleIfReq(const usbModel::setupRequest* sreq, const uint8_t end
 
     case usbModel::USB_REQ_SET_FEATURE:
 
+        // Requires IN status stage
+        instatus = true;
+
         // Generate an ACK handshake for the SETUP data
         sendPktToHost(usbModel::PID_HSHK_ACK, idle);
         dataPidUpdate(endp);
@@ -937,6 +1032,9 @@ int usbDevice::handleIfReq(const usbModel::setupRequest* sreq, const uint8_t end
         break;
 
     case usbModel::USB_REQ_GET_INTERFACE:
+
+        // Requires OUT status stage
+        instatus = false;
 
         // Generate an ACK handshake for the SETUP data
         sendPktToHost(usbModel::PID_HSHK_ACK, idle);
@@ -952,11 +1050,14 @@ int usbDevice::handleIfReq(const usbModel::setupRequest* sreq, const uint8_t end
         snprintf(sbuf, usbModel::ERRBUFSIZE,"  %s RX IF REQ: GET INTERFACE (wIndex=0x%04x)\n", name.c_str(), sreq->wIndex);
 
         // Send the response to the GET_STATUS command
-        return sendGetResp (sreq, buf, datasize, endp, sbuf);
+        error = sendGetResp (sreq, buf, datasize, endp, sbuf);
 
         break;
 
     case usbModel::USB_REQ_SET_INTERFACE:
+
+        // Requires IN status stage
+        instatus = true;
 
         // Generate an ACK handshake for the SETUP data
         sendPktToHost(usbModel::PID_HSHK_ACK, idle);
@@ -973,7 +1074,14 @@ int usbDevice::handleIfReq(const usbModel::setupRequest* sreq, const uint8_t end
         break;
     }
 
-    return usbModel::USBOK;
+    // Do control status stage
+    if (error == usbModel::USBOK)
+    {
+        // Do status stage
+        error = controlStatusStage(instatus, endp);
+    }
+
+    return error;
 }
 
 //-------------------------------------------------------------
@@ -995,10 +1103,12 @@ int usbDevice::handleIfReq(const usbModel::setupRequest* sreq, const uint8_t end
 
 int usbDevice::handleEpReq(const usbModel::setupRequest* sreq, const uint8_t endp, const int idle)
 {
-    int datasize;
+    int     error = usbModel::USBOK;
+    int     datasize;
     uint8_t buf[2];
     int     epidx;
     int     epdir;
+    bool    instatus;
 
     USBDEVDEBUG("handleEpReq: bRequest=0x%02x\n", sreq->bRequest);
 
@@ -1008,6 +1118,9 @@ int usbDevice::handleEpReq(const usbModel::setupRequest* sreq, const uint8_t end
     switch(sreq->bRequest)
     {
     case usbModel::USB_REQ_GET_STATUS:
+
+        // Requires OUT status stage
+        instatus = false;
 
         // Generate an ACK handshake for the SETUP data
         sendPktToHost(usbModel::PID_HSHK_ACK, idle);
@@ -1023,11 +1136,14 @@ int usbDevice::handleEpReq(const usbModel::setupRequest* sreq, const uint8_t end
         snprintf(sbuf, usbModel::ERRBUFSIZE,"  %s RX EP REQ: GET STATUS\n", name.c_str());
 
         // Send the response to the GET_STATUS command
-        return sendGetResp (sreq, buf, datasize, endp, sbuf);
+        error = sendGetResp (sreq, buf, datasize, endp, sbuf);
 
         break;
 
     case usbModel::USB_REQ_CLEAR_FEATURE:
+
+        // Requires IN status stage
+        instatus = true;
 
         // Generate an ACK handshake for the SETUP data
         sendPktToHost(usbModel::PID_HSHK_ACK, idle);
@@ -1042,6 +1158,9 @@ int usbDevice::handleEpReq(const usbModel::setupRequest* sreq, const uint8_t end
 
     case usbModel::USB_REQ_SET_FEATURE:
 
+        // Requires IN status stage
+        instatus = true;
+
         // Generate an ACK handshake for the SETUP data
         sendPktToHost(usbModel::PID_HSHK_ACK, idle);
         dataPidUpdate(endp);
@@ -1054,11 +1173,14 @@ int usbDevice::handleEpReq(const usbModel::setupRequest* sreq, const uint8_t end
 
     case usbModel::USB_REQ_SYNCH_FRAME:
 
+        // Requires OUT status stage
+        instatus = false;
+
         // Generate an ACK handshake for the SETUP data
         sendPktToHost(usbModel::PID_HSHK_ACK, idle);
         dataPidUpdate(endp);
 
-        // Not suppotred so send back 0
+        // Not supported so send back 0
         buf[0]   = 0;
         buf[1]   = 0;
 
@@ -1068,7 +1190,7 @@ int usbDevice::handleEpReq(const usbModel::setupRequest* sreq, const uint8_t end
         snprintf(sbuf, usbModel::ERRBUFSIZE,"  %s RX EP REQ: SYNCH FRAME\n", name.c_str());
 
         // Send the response to the GET_STATUS command
-        return sendGetResp (sreq, buf, datasize, endp, sbuf);
+        error = sendGetResp (sreq, buf, datasize, endp, sbuf);
 
         break;
 
@@ -1079,7 +1201,15 @@ int usbDevice::handleEpReq(const usbModel::setupRequest* sreq, const uint8_t end
         break;
     }
 
-    return usbModel::USBOK;
+    // Do control status stage
+    if (error == usbModel::USBOK)
+    {
+        // Do status stage
+        error = controlStatusStage(instatus, endp);
+    }
+
+
+    return error;
 }
 
 //-------------------------------------------------------------

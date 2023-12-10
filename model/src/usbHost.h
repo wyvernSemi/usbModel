@@ -122,13 +122,13 @@ public:
                                        const unsigned timeout   =  3*usbPliApi::ONE_MS);
 
     // ----------------------------------------------------------
-    // Extract descriptors from raw configuration description 
+    // Extract descriptors from raw configuration description
     // data
     // ----------------------------------------------------------
 
     int  usbHostFindDescriptor        (const int desctype, const int      descidx, const uint8_t* rawdata,
                                        const int len,            uint8_t* descdata);
-    
+
     // ----------------------------------------------------------
     // Device control methods
     // ----------------------------------------------------------
@@ -273,6 +273,9 @@ private:
                                        const uint16_t value = 0, const uint16_t index = 0, const uint16_t length = 0,
                                        const unsigned idle  = DEFAULTIDLEDELAY);
 
+    int  sendControlStatus            (const uint8_t  addr,       const uint8_t  endp, const bool out,
+                                       const unsigned idle  = DEFAULTIDLEDELAY);
+
     int  sendDataOut                  (const uint8_t  addr,       const uint8_t  endp,
                                              uint8_t  data[],     const int      len,
                                        const int      maxpktsize, const bool     isochronous,
@@ -287,6 +290,8 @@ private:
                                        const uint8_t  type,             uint16_t &status,
                                        const uint16_t wValue = 0, const uint16_t wIndex = 0,
                                        const unsigned idle = DEFAULTIDLEDELAY);
+                                       
+    int waitForAck                    (void);
 
     void checkSof                     (const unsigned idle = DEFAULTIDLEDELAY);
     bool checkConnected               (void);

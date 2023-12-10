@@ -247,7 +247,7 @@ extern "C" void VUserMain0()
         // Define some endpoint descriptors for the endpoint, OUT and IN
         usbModel::endpointDesc epdesc1_OUT, epdesc1_IN;
 
-        // Extract the enddpoint decriptors from the saved configuration descriptor data
+        // Extract the enddpoint descriptors from the saved configuration descriptor data
         host.usbHostFindDescriptor(usbModel::EP_DESCRIPTOR_TYPE, endp | usbModel::DIRTODEV,  cfgdescbuf, wTotalLength, (uint8_t*)&epdesc1_OUT);
         host.usbHostFindDescriptor(usbModel::EP_DESCRIPTOR_TYPE, endp | usbModel::DIRTOHOST, cfgdescbuf, wTotalLength, (uint8_t*)&epdesc1_IN);
 
@@ -279,15 +279,14 @@ extern "C" void VUserMain0()
          //-------------------------------------------------------------
 
          host.usbHostSuspendDevice();
-
     }
+
 
     // Wait a bit before halting to let the device receive any last ACK
     host.usbHostSleepUs(10);
 
     // Halt the simulation
     host.usbHostEndExecution();
-
 
 }
 

@@ -29,7 +29,7 @@
 
 module test
 #(parameter CLK_PERIOD_MHZ = 12,
-  parameter TIMEOUT_US     = 1000,
+  parameter TIMEOUT_US     = 5000,
   parameter GUI_RUN        = 0
 );
 

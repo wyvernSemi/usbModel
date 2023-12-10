@@ -626,7 +626,7 @@ int usbPkt::usbPktDecode(const usbModel::usb_signal_t nrzibuf[], int& pid, uint3
     int     idx;
     uint8_t addr;
     uint8_t endp;
-    
+
 
     // Default data length is zero
     databytes = 0;
@@ -673,9 +673,9 @@ int usbPkt::usbPktDecode(const usbModel::usb_signal_t nrzibuf[], int& pid, uint3
         args[usbModel::ARGADDRIDX]    = rawbuf[usbModel::ADDRBYTEOFFSET].dp & 0x7f;
         args[usbModel::ARGENDPIDX]    = (rawbuf[usbModel::ENDPBYTEOFFSET].dp >> 7) | ((rawbuf[usbModel::ENDPBYTEOFFSET+1].dp & 0x7) << 1);
         args[usbModel::ARGTKNCRC5IDX] = rawbuf[usbModel::CRC5BYTEOFFSET].dp >> 3;
-        
+
         addr = args[usbModel::ARGADDRIDX];
-        endp = args[usbModel::ARGENDPIDX] | ((args[usbModel::ARGENDPIDX] == 0 && addr == 0) ? usbModel::DIRTODEV : usbModel::DIRTOHOST);
+        endp = args[usbModel::ARGENDPIDX] | ((args[usbModel::ARGENDPIDX] == 0 || pid == usbModel::PID_TOKEN_OUT) ? usbModel::DIRTODEV : usbModel::DIRTOHOST);
 
         crc = usbcrc5(&rawbuf[usbModel::ADDRBYTEOFFSET], 2, 3);
 
@@ -744,7 +744,7 @@ int usbPkt::usbPktDecode(const usbModel::usb_signal_t nrzibuf[], int& pid, uint3
         }
 
         // Copy validated memory to output buffer
-        USBDISPPKT("  %s RX DATA:    %s", name.c_str(), pid == usbModel::PID_DATA_0 ? "DATA0" : "DATA1");
+        USBDISPPKT("  %s RX DATA:    %s%s", name.c_str(), pid == usbModel::PID_DATA_0 ? "DATA0" : "DATA1", databytes ? "" : " (zero length)");
 
         for (idx = 0; idx < databytes; idx++)
         {

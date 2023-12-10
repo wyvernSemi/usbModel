@@ -32,7 +32,12 @@
 namespace usbModel
 {
     // -------------------------------------------------------------------------
+    // fmtDecriptorType
+    //
+    // Returns descriptive string for a descriptor type
+    //
     // -------------------------------------------------------------------------
+
     const char* fmtDecriptorType(const uint8_t desc)
     {
         switch(desc)
@@ -48,7 +53,13 @@ namespace usbModel
     }
 
     // -------------------------------------------------------------------------
+    // fmtFuncDescSubtype
+    //
+    // Returns descriptive string for a descriptor class specific
+    // function sub-type
+    //
     // -------------------------------------------------------------------------
+
     const char* fmtFuncDescSubtype(const uint8_t subtype)
     {
         switch(subtype)
@@ -62,7 +73,12 @@ namespace usbModel
     }
 
     // -------------------------------------------------------------------------
+    // fmtDevDescriptor
+    // 
+    // Returns a string with a formatted device descriptor.
+    // 
     // -------------------------------------------------------------------------
+    
     int fmtDevDescriptor(char sbuf[], const uint8_t rawdata[], const unsigned indent, const int maxstrsize)
     {
         deviceDesc *desc = (deviceDesc*)rawdata;
@@ -96,7 +112,12 @@ namespace usbModel
     }
 
     // -------------------------------------------------------------------------
+    // fmtCfgDescriptor
+    //
+    // Returns a string with a formatted configuration descriptor
+    //
     // -------------------------------------------------------------------------
+    
     int fmtCfgDescriptor(char sbuf[], const uint8_t rawdata[], const unsigned indent, const int maxstrsize)
     {
         configDesc *desc = (configDesc*)rawdata;
@@ -130,6 +151,10 @@ namespace usbModel
     }
 
     // -------------------------------------------------------------------------
+    // fmtIfDescriptor
+    //
+    // Returns a string with a formatted interface descriptor
+    //
     // -------------------------------------------------------------------------
 
     int fmtIfDescriptor(char sbuf[], const uint8_t rawdata[], const unsigned indent, const int maxstrsize)
@@ -167,6 +192,10 @@ namespace usbModel
     }
 
     // -------------------------------------------------------------------------
+    // fmtEpDescriptor
+    //
+    // Returns a string with a formatted endpoint descriptor
+    //
     // -------------------------------------------------------------------------
     int fmtEpDescriptor  (char sbuf[], const uint8_t rawdata[], const unsigned indent, const int maxstrsize)
     {
@@ -197,6 +226,10 @@ namespace usbModel
     }
 
     // -------------------------------------------------------------------------
+    // fmtHdrFuncDescriptor
+    //
+    // Returns a string with a formatted class specific header function
+    //
     // -------------------------------------------------------------------------
 
     int fmtHdrFuncDescriptor (char sbuf[], const uint8_t rawdata[], const unsigned indent, const int maxstrsize)
@@ -224,6 +257,10 @@ namespace usbModel
     }
 
     // -------------------------------------------------------------------------
+    // fmtAcmFuncDescriptor
+    //
+    // Returns a string with a formatted class specific ACM function
+    //
     // -------------------------------------------------------------------------
 
     int fmtAcmFuncDescriptor (char sbuf[], const uint8_t rawdata[], const unsigned indent, const int maxstrsize)
@@ -251,6 +288,10 @@ namespace usbModel
     }
 
     // -------------------------------------------------------------------------
+    // fmtUnionFuncDescriptor
+    //
+    // Returns a string with a formatted class specific union function
+    //
     // -------------------------------------------------------------------------
 
     int fmtUnionFuncDescriptor (char sbuf[], const uint8_t rawdata[], const unsigned indent, const int maxstrsize)
@@ -280,6 +321,10 @@ namespace usbModel
     }
 
     // -------------------------------------------------------------------------
+    // fmtCallMgmtFuncDescriptor
+    // 
+    // Returns a string with a formatted class specific call management function
+    // 
     // -------------------------------------------------------------------------
 
     int fmtCallMgmtFuncDescriptor (char sbuf[], const uint8_t rawdata[], const unsigned indent, const int maxstrsize)
@@ -309,6 +354,11 @@ namespace usbModel
     }
 
     // -------------------------------------------------------------------------
+    // fmtCfgAllDescriptor
+    //
+    // Returns a string with a formatted configurations decriptor and all the
+    // accompanying other decriptors
+    //
     // -------------------------------------------------------------------------
 
     int fmtCfgAllDescriptor (char sbuf[], const uint8_t rawdata[], const unsigned indent, const int maxstrsize)
@@ -385,6 +435,10 @@ namespace usbModel
     }
 
     // -------------------------------------------------------------------------
+    // fmtStrToUnicode
+    //
+    // Converts a C style string of ACSII characters to 16-bit unicode 
+    //
     // -------------------------------------------------------------------------
 
     int fmtStrToUnicode (uint16_t* dst, const char* src, const int maxstrsize)
@@ -399,6 +453,10 @@ namespace usbModel
     }
 
     // -------------------------------------------------------------------------
+    // fmtUnicodeToStr
+    // 
+    // Converts 16-bit unicode to ASCII C style caharcter string
+    // 
     // -------------------------------------------------------------------------
 
     int fmtUnicodeToStr (char* dst, const uint16_t* src, const int length, const int maxstrsize)
@@ -415,6 +473,10 @@ namespace usbModel
     }
 
     // -------------------------------------------------------------------------
+    // fmtLineState
+    // 
+    // Returns a descriptive string of the 4-bit USB line state.
+    // 
     // -------------------------------------------------------------------------
     const char* fmtLineState(const unsigned linestate)
     {
