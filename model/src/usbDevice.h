@@ -186,7 +186,7 @@ private:
         configAllDesc() : cfgdesc0(sizeof(configAllDesc)),
                           ifdesc0(0, NUMIF0EPS),
                           epdesc0_0(0x82, 0x03, 0xff),
-                          ifdesc1(1, NUMIF1EPS),
+                          ifdesc1(1, NUMIF1EPS, 0x0a, 0, 0),
                           epdesc1_0(0x81, 02),
                           epdesc1_1(0x01, 02)
         {

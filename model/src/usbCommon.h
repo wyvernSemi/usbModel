@@ -257,16 +257,16 @@ namespace usbModel
         uint8_t        bInterfaceProtocol;
         uint8_t        iInterface;
 
-        interfaceDesc(uint8_t index = 0, uint8_t numep = 1)
+        interfaceDesc(uint8_t index = 0, uint8_t numep = 1, uint8_t ifclass = 0x2, uint8_t ifsubclass = 0x02, uint8_t ifprotocol = 0x01)
         {
             bLength             = 0x09;                                // 9 bytes
             bDescriptorType     = IF_DESCRIPTOR_TYPE;                  // 0x04 = interface descriptor
             bInterfaceNumber    = index;                               // Index of this interface descriptor
             bAlternateSetting   = 0x00;                                // Selection index for alternative setting
             bNumEndpoints       = numep;                               // Number of endpoints under interface
-            bInterfaceClass     = 0x02;                                // Interface class (0x02 = CDC)
-            bInterfaceSubClass  = 0x02;                                // Interface sub-class (0x02)
-            bInterfaceProtocol  = 0x01;                                // Interface protocol (0x01)
+            bInterfaceClass     = ifclass;                             // Interface class (default 0x02 = CDC)
+            bInterfaceSubClass  = ifsubclass;                          // Interface sub-class (default 0x02 = ACM)
+            bInterfaceProtocol  = ifprotocol;                          // Interface protocol (default 0x01 = AT cmd V.250 protocol)
             iInterface          = 0x00;                                // Index to interface description string (none)
         }
     };
