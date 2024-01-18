@@ -31,10 +31,11 @@ extern "C"
 char *veriuser_version_str = "Virtual Processor PLI V0.1 Copyright (c) 2005-2023 Simon Southwell.";
 
 // Define the PLI task table for just the tasks from VProc needed
-s_tfcell veriusertfs[3] =
+s_tfcell veriusertfs[4] =
 {
     {usertask, 0, NULL, 0, VInit,     NULL,  "$vinit",     1},
     {usertask, 0, NULL, 0, VSched,    NULL,  "$vsched",    1},
+    {usertask, 0, NULL, 0, VSched,    NULL,  "$virq",      1},
     {0} 
 };
 
