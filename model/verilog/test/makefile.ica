@@ -1,0 +1,240 @@
+###################################################################
+# Makefile for Virtual PCIe Host test code in Modelsim
+#
+# Copyright (c) 2005-2022 Simon Southwell.
+#
+# This file is part of pcieVHost.
+#
+# pcieVHost is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# pcieVHost is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with pcieVHost. If not, see <http://www.gnu.org/licenses/>.
+#
+###################################################################
+
+#------------------------------------------------------
+# User modifiable flags
+
+USRFLAGS      = -DUSBTESTMODE
+USRSRCDIR     = usercode
+USER_CPP      = VUserMain0.cpp VUserMain1.cpp
+PLIFLAG       = -DVPROC_PLI_VPI
+
+#------------------------------------------------------
+# Definitions for VProc virtual processor
+#------------------------------------------------------
+
+#
+# Only need two virtual processor nodes
+#
+NUM_VPROC     = 2
+
+#
+# Location of VProc directory. Assumes in same directory as usbModel repository.
+# Update/override if located elsewhere.
+#
+VPROC_TOP     = ../../../../vproc
+
+#
+# Define the github repository URL for the VProc virtual processor
+#
+VPROC_REPO    = https://github.com/wyvernSemi/vproc.git
+
+#
+# USB VHost test definitions
+#
+USBVLOGDIR    = ../src
+PLIDIR        = ../pli
+SRCDIR        = ../../src
+WORKDIR       = work
+
+#------------------------------------------------------
+# User code definitions (non-modifiable)
+#------------------------------------------------------
+
+#
+# Find any user code header files (if any)
+#
+USRHDRS       = $(wildcard ${USRSRCDIR}/*.h)
+
+#
+# Get all the header files for the model source code
+#
+SRCHDRS       = $(wildcard ${SRCDIR}/*.h)
+
+#
+# Usb C++ auto-generated memory map for Verilog
+# accessible signals and registers
+#
+USBCMAP       = ${USRSRCDIR}/usbMap.h
+
+#------------------------------------------------------
+# PLI shared object definitions
+#------------------------------------------------------
+
+#
+# PLI C/C++ code definitions
+#
+PLI_SO        = ./VProc.so
+VPROC_LIB     = libvproc.a
+VPROCLIBPATH  = ${VPROC_TOP}/${VPROC_LIB}
+USBVLOGMAP    = ${USBVLOGDIR}/usbModel.vh
+
+#
+# All source files (model and user code)
+#
+ALLSRC        =  ${USBCMAP} ${SRCDIR}/*.cpp ${PLIDIR}/*.cpp ${USER_CPP:%.cpp=${USRSRCDIR}/%.cpp}
+
+#------------------------------------------------------
+# Flags for simulator
+#------------------------------------------------------
+
+VLOGFLAGS      = -I${USBVLOGDIR} -I${VPROC_TOP} -Ptest.VCD_DUMP=1
+VLOGDEBUGFLAGS = -Ptest.DEBUG_STOP=1
+VLOGFILES      = ../src/usbModel.v ${VPROC_TOP}/f_VProc.v test.v
+
+#------------------------------------------------------
+# Flags for C compiler
+#------------------------------------------------------
+
+# Get OS type
+OSTYPE       :=$(shell uname)
+
+# Set OS specific variables between Linux and Windows (MinGW)
+ifeq (${OSTYPE}, Linux)
+  CFLAGS_SO        = -shared -lpthread -lrt -rdynamic
+  ICADIR           = /usr/include/iverilog
+else
+  CFLAGS_SO        = -shared -Wl,-export-all-symbols
+  ICADIR           = /mingw64/include/iverilog
+endif
+
+CC            = gcc
+C++           = g++
+ARCH          = -m64
+CFLAGS        = -fPIC                                 \
+                -Wno-write-strings                    \
+                ${ARCHFLAG}                           \
+                ${PLIFLAG}                            \
+                -g                                    \
+                -D_GNU_SOURCE                         \
+                ${USRFLAGS}                           \
+                -I${SRCDIR}                           \
+                -I${USRSRCDIR}                        \
+                -I${ICADIR}                           \
+                -I${VPROC_TOP}/code                   \
+                -DICARUS                              \
+                -D_REENTRANT
+
+# Set OS specific variables between Linux and Windows (MinGW)
+ifeq (${OSTYPE}, Linux)
+  CFLAGS_SO   = -shared -lpthread -lrt -rdynamic -Wno-format-truncation
+else
+  CFLAGS_SO   = -shared -Wl,-export-all-symbols
+endif
+
+# C++ compilation standard
+CPPSTD        = -std=c++11
+
+#------------------------------------------------------
+# BUILD RULES
+#------------------------------------------------------
+
+#
+# Build the verilog and the PLI shared object by default
+#
+all: ${PLI_SO} verilog
+
+#
+# PLI shared object
+#
+${PLI_SO}: ${VPROCLIBPATH} ${ALLSRC} ${SRCHDRS} ${USRHDRS}
+	@${C++} ${CPPSTD}                            \
+            ${CFLAGS_SO}                         \
+	       -Wl,-whole-archive                    \
+           ${CFLAGS}                             \
+ 	       ${VPROCLIBPATH}                       \
+           ${ALLSRC}                             \
+           -lpthread                             \
+           -lveriuser -lvpi                      \
+           -L${TESTDIR} -lvproc                  \
+	       -Wl,-no-whole-archive                 \
+	       -o $@
+
+#
+# VProc library.
+#
+${VPROCLIBPATH}: ${VPROC_TOP}
+	@${MAKE} --no-print-directory                \
+             -C ${VPROC_TOP}                     \
+             -f makefile.ica                     \
+             MAX_NUM_VPROC=${NUM_VPROC}          \
+             ARCHFLAG=${ARCH}                    \
+             PLIFLAG=${PLIFLAG}                  \
+             USER_C=""                           \
+             ${VPROC_LIB}
+
+#
+# Checkout VProc from github if it doesn't exist at the specified location
+#
+${VPROC_TOP}:
+	@git clone ${VPROC_REPO} ${VPROC_TOP} --recursive
+
+#
+# Auto-generate the C++ header from the Verilog header so they always match
+#
+${USBCMAP}: ${USBVLOGMAP}
+	@sed -e 's/`/#/g' -e 's/_USB_VH_/_USB_MAP_H_/g' < $^ > $@
+
+verilog: ${VLOGFILES}
+	@iverilog ${VLOGFLAGS} ${PLIFLAG} -o sim ${VLOGFILES}
+
+verilog_debug: ${VLOGFILES}
+	@iverilog ${VLOGDEBUGFLAGS} ${VLOGFLAGS} ${PLIFLAG} -o sim ${VLOGFILES}
+
+#------------------------------------------------------
+# EXECUTION RULES
+#------------------------------------------------------
+
+run: all
+	vvp -n -m ${PLI_SO} sim
+
+sim: all
+	@vvp -s -m ${PLI_SO} sim
+
+rungui: all
+	@vvp -n -m ${PLI_SO} sim
+	@if [ -e waves.gtkw ]; then                            \
+	    gtkwave -A waves.vcd;                              \
+	else                                                   \
+	    gtkwave waves.vcd;                                 \
+	fi
+
+simgui: all
+	@vvp -s -m ${PLI_SO} sim
+	@if [ -e waves.gtkw ]; then                            \
+	    gtkwave -A waves.vcd;                              \
+	else                                                   \
+	    gtkwave waves.vcd;                                 \
+	fi
+
+debug: clean ${PLI_SO} verilog_debug
+	@vvp -m ${PLI_SO} sim
+
+gui : rungui
+
+#------------------------------------------------------
+# CLEANING RULES
+#------------------------------------------------------
+
+clean:
+	@${MAKE} --no-print-directory -C ${VPROC_TOP} clean
+	@rm -rf ${PLI_SO} ${USBCMAP} sim *.vcd

@@ -33,7 +33,7 @@ module usbModel
             (
              input clk,
              input nreset,
-           
+
              inout linep,
              inout linem
             );
@@ -72,15 +72,15 @@ wire         doen;
 // Speed pullup control. Device side pullup can be disconnected in highspeed mode,
 // after chirp negotiation and switch to HS, to balance line.
 
-// Device side pullup control
-assign (pull1, highz0) linep   = DEVICE & (FULLSPEED  & !nopullup);
-assign (pull1, highz0) linem   = DEVICE & (!FULLSPEED & !nopullup);
+// Device side pullup control (explicit 1'b1/1'b0 for Icarus verilog)
+assign (pull1, highz0) linep   = (DEVICE &&  FULLSPEED  && !nopullup) ? 1'b1 : 1'b0;
+assign (pull1, highz0) linem   = (DEVICE && !FULLSPEED  && !nopullup) ? 1'b1 : 1'b0;
 
 // Host side pull down resistor control
-assign (highz1, weak0) linep   = DEVICE | (nopullup);
-assign (highz1, weak0) linem   = DEVICE | (nopullup);
+assign (highz1, weak0) linep   = (DEVICE || (nopullup)) ? 1'b1 : 1'b0;
+assign (highz1, weak0) linem   = (DEVICE || (nopullup)) ? 1'b1 : 1'b0;
 
-assign #1 doen = oen;
+assign #1 doen                 = oen;
 
 // USB line driver logic
 assign linep                   = (doen & oen) ? dp : 1'bZ;
@@ -102,17 +102,17 @@ end
  // --------------------------------
  // Virtual Processor
  // --------------------------------
- VProc vp (.Clk                (clk), 
-           .Addr               (addr), 
-           .WE                 (wr), 
-           .RD                 (rd), 
-           .DataOut            (wdata), 
-           .DataIn             (rdata), 
-           .WRAck              (wack), 
-           .RDAck              (rack), 
-           .Interrupt          (3'b000), 
-           .Update             (update), 
-           .UpdateResponse     (updateresp), 
+ VProc vp (.Clk                (clk),
+           .Addr               (addr),
+           .WE                 (wr),
+           .RD                 (rd),
+           .DataOut            (wdata),
+           .DataIn             (rdata),
+           .WRAck              (wack),
+           .RDAck              (rack),
+           .Interrupt          (3'b000),
+           .Update             (update),
+           .UpdateResponse     (updateresp),
            .Node               (node[3:0])
            );
 
@@ -129,13 +129,13 @@ end
 // to registers and simulation
 // control.
 // --------------------------------
- 
+
 // Addressable read/write state from VProc
 always @(update)
 begin
   // Default read data value
   rdata                        = 32'h00000000;
-  
+
   // Process when an access is valid
   if (wr === 1'b1 || rd === 1'b1)
   begin
@@ -143,25 +143,25 @@ begin
     `NODE_NUM:    rdata        = node;
     `CLKCOUNT:    rdata        = clkcount;
     `RESET_STATE: rdata        = {31'h0000, ~nreset};
-    
+
     `PULLUP:
     begin
       if (wr === 1'b1)
         nopullup               = ~wdata[0];
       rdata                    = {31'h0000, nopullup};
     end
-    
+
     `OUTEN:
     begin
       if (wr === 1'b1)
         oen                    = wdata[0];
       rdata                    = {31'h0000, oen};
     end
-    
+
     `LINE:
     begin
       if (wr === 1'b1)
-      begin            
+      begin
         dp                     = wdata[0];
         dm                     = wdata[1];
       end
@@ -170,11 +170,11 @@ begin
 
     `UVH_STOP:
       if (wr === 1'b1) $stop;
-      
+
     `UVH_FINISH:
       // Always stop when in GUI
       if (wr === 1'b1) if (GUI_RUN==1) $stop; else $finish;
-    
+
     default:
     begin
         $display("%m: ***Error. usbModel---access to invalid address (%h) from VProc", addr);

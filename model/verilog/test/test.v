@@ -30,7 +30,9 @@
 module test
 #(parameter CLK_PERIOD_MHZ = 12,
   parameter TIMEOUT_US     = 5000,
-  parameter GUI_RUN        = 0
+  parameter GUI_RUN        = 0,
+  parameter VCD_DUMP       = 0,
+  parameter DEBUG_STOP     = 0
 );
 
 // Derive some useful local parameters
@@ -48,9 +50,25 @@ wire    nreset = (count >= 10) ? 1'b1 : 1'b0;
 initial
 begin
     clk = 1;
+    
+    if (VCD_DUMP)
+    begin
+      $dumpfile("waves.vcd");
+      $dumpvars(0, test);
+    end
 
     #0                  // Ensure first x->1 clock edge is complete before initialisation
     count = 0;
+    
+    // Stop the simulation when debugging to allow a debugger to connect
+    if (DEBUG_STOP != 0)
+    begin
+      $display("\n***********************************************");
+      $display("* Stopping simulation for debugger attachment *");
+      $display("***********************************************\n");
+      $stop;
+    end
+
     forever # (CLK_PERIOD_PS/2) clk = ~clk;
 end
 

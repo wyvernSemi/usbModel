@@ -28,14 +28,20 @@ extern "C"
 // Definitions of VProc PLI C functions
 #include "VSched_pli.h"
 
+#ifndef VPROC_PLI_VPI
+
+#ifdef ICARUS
+typedef int (*p_tffn)(int, int);
+#endif
+
 char *veriuser_version_str = "Virtual Processor PLI V0.1 Copyright (c) 2005-2023 Simon Southwell.";
 
 // Define the PLI task table for just the tasks from VProc needed
 s_tfcell veriusertfs[4] =
 {
-    {usertask, 0, NULL, 0, VInit,     NULL,  "$vinit",     1},
-    {usertask, 0, NULL, 0, VSched,    NULL,  "$vsched",    1},
-    {usertask, 0, NULL, 0, VSched,    NULL,  "$virq",      1},
+    {usertask, 0, NULL, 0, (p_tffn)VInit,     NULL,  "$vinit",     1},
+    {usertask, 0, NULL, 0, (p_tffn)VSched,    NULL,  "$vsched",    1},
+    {usertask, 0, NULL, 0, (p_tffn)VIrq,      NULL,  "$virq",      1},
     {0} 
 };
 
@@ -51,6 +57,8 @@ static void veriusertfs_register(void)
 }
 
 void (*vlog_startup_routines[])() = { &veriusertfs_register, 0 };
+#endif
+
 #endif
 
 }
