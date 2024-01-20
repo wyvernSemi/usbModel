@@ -205,7 +205,7 @@ verilog_debug: ${VLOGFILES}
 #------------------------------------------------------
 
 run: all
-	vvp -n -m ${PLI_SO} sim
+	@vvp -n -m ${PLI_SO} sim
 
 sim: all
 	@vvp -s -m ${PLI_SO} sim
@@ -218,18 +218,23 @@ rungui: all
 	    gtkwave waves.vcd;                                 \
 	fi
 
-simgui: all
-	@vvp -s -m ${PLI_SO} sim
-	@if [ -e waves.gtkw ]; then                            \
-	    gtkwave -A waves.vcd;                              \
-	else                                                   \
-	    gtkwave waves.vcd;                                 \
-	fi
-
 debug: clean ${PLI_SO} verilog_debug
 	@vvp -m ${PLI_SO} sim
 
+waves:
+	@gtkwave -A waves.vcd
+
 gui : rungui
+
+help:
+	@echo "make help          Display this message"
+	@echo "make               Build C/C++ code without running simulation"
+	@echo "make run           Build and run batch simulation"
+	@echo "make sim           Build and run interactive session (sim not started)"
+	@echo "make debug         Build and run batch simulation, stopping for debugger attachment"
+	@echo "make rungui/gui    Build and run GUI simulation"
+	@echo "make waves         Run wave view in gtkwave"
+	@echo "make clean         clean previous build artefacts"
 
 #------------------------------------------------------
 # CLEANING RULES

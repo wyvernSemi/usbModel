@@ -50,7 +50,11 @@ rungui:
 simgui:
 	@$(COMMONCMD) simgui
 
+help:
+	@$(COMMONCMD) help
+
 gui: rungui
+
 
 clean:
 	@$(COMMONCMD) clean
