@@ -20,9 +20,6 @@
 #
 ###################################################################
 
-# MODEL_TECH environment variable must be set for pointing to
-# executable binary directory
-
 #------------------------------------------------------
 # User modifiable flags
 
@@ -34,6 +31,23 @@ USER_CPP      = VUserMain0.cpp VUserMain1.cpp
 # Check if questa and set ARCH for 64 bits, else
 # assume modelsim and 32 bits
 #------------------------------------------------------
+
+# Get OS type
+OSTYPE             = $(shell uname)
+
+# If run from a place where MODEL_TECH is not defined, construct from path to PLI library
+ifeq ("${MODEL_TECH}", "")
+  ifeq (${OSTYPE}, Linux)
+    PLILIB         = libmtipli.so
+  else
+    PLILIB         = mtipli.dll
+  endif
+  
+  VSIMPATH         = $(shell which vsim)
+  SIMROOT          = $(shell dirname ${VSIMPATH})/..
+  PLILIBPATH       = $(shell find ${SIMROOT} -name "${PLILIB}")
+  MODEL_TECH       = $(shell dirname ${PLILIBPATH})
+endif
 
 ifeq ($(findstring questa, $(subst  _, , $(subst  /, , ${MODEL_TECH}))), questa)
   ARCH=-m64
@@ -240,7 +254,7 @@ help:
 # CLEANING RULES
 #------------------------------------------------------
 
-clean:
+clean: ${VPROC_TOP}
 	@if [ -d "${WORKDIR}" ]; then                \
 	  vdel -all;                                 \
      fi
