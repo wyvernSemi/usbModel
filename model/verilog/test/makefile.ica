@@ -240,6 +240,6 @@ help:
 # CLEANING RULES
 #------------------------------------------------------
 
-clean:
+clean: ${VPROC_TOP}
 	@${MAKE} --no-print-directory -C ${VPROC_TOP} clean
 	@rm -rf ${PLI_SO} ${USBCMAP} sim *.vcd
