@@ -85,7 +85,7 @@ USBCMAP       = ${USRSRCDIR}/usbMap.h
 #
 PLI_SO        = ./VProc.so
 VPROC_LIB     = libvproc.a
-VPROCLIBPATH  = ${VPROC_TOP}/${VPROC_LIB}
+VPROCLIBPATH  = ${VPROC_TOP}/test/${VPROC_LIB}
 USBVLOGMAP    = ${USBVLOGDIR}/usbModel.vh
 
 #
@@ -174,7 +174,7 @@ ${PLI_SO}: ${VPROCLIBPATH} ${ALLSRC} ${SRCHDRS} ${USRHDRS}
 #
 ${VPROCLIBPATH}: ${VPROC_TOP}
 	@${MAKE} --no-print-directory                \
-             -C ${VPROC_TOP}                     \
+             -C ${VPROC_TOP}/test                \
              -f makefile.ica                     \
              MAX_NUM_VPROC=${NUM_VPROC}          \
              ARCHFLAG=${ARCH}                    \
@@ -241,5 +241,5 @@ help:
 #------------------------------------------------------
 
 clean: ${VPROC_TOP}
-	@${MAKE} --no-print-directory -C ${VPROC_TOP} clean
+	@${MAKE} --no-print-directory -C ${VPROC_TOP}/test clean
 	@rm -rf ${PLI_SO} ${USBCMAP} sim *.vcd

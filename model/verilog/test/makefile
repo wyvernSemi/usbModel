@@ -112,7 +112,7 @@ USBCMAP       = ${USRSRCDIR}/usbMap.h
 #
 PLI_SO        = VProc.so
 VPROC_LIB     = libvproc.a
-VPROCLIBPATH  = ${VPROC_TOP}/${VPROC_LIB}
+VPROCLIBPATH  = ${VPROC_TOP}/test/${VPROC_LIB}
 USBVLOGMAP    = ${USBVLOGDIR}/usbModel.vh
 
 #
@@ -202,7 +202,7 @@ ${PLI_SO}: checkenv ${VPROCLIBPATH} ${ALLSRC} ${SRCHDRS} ${USRHDRS}
 # VProc library.
 #
 ${VPROCLIBPATH}: ${VPROC_TOP}
-	@${MAKE} --no-print-directory -C ${VPROC_TOP} MAX_NUM_VPROC=${NUM_VPROC} ARCHFLAG=${ARCH} USER_C="" ${VPROC_LIB}
+	@${MAKE} --no-print-directory -C ${VPROC_TOP}/test MAX_NUM_VPROC=${NUM_VPROC} ARCHFLAG=${ARCH} USER_C="" ${VPROC_LIB}
 
 #
 # Checkout VProc from github if it doesn't exist at the specified location
@@ -258,7 +258,7 @@ clean: ${VPROC_TOP}
 	@if [ -d "${WORKDIR}" ]; then                \
 	  vdel -all;                                 \
      fi
-	@${MAKE} --no-print-directory -C ${VPROC_TOP} clean
+	@${MAKE} --no-print-directory -C ${VPROC_TOP}/test clean
 	@rm -rf ${PLI_SO} ${USBCMAP} *.wlf transcript work
 
 
