@@ -26,33 +26,27 @@
 USRFLAGS      = -DUSBTESTMODE
 USRSRCDIR     = usercode
 USER_CPP      = VUserMain0.cpp VUserMain1.cpp
+ARCHFLAG      = -m64
 
 #------------------------------------------------------
-# Check if questa and set ARCH for 64 bits, else
-# assume modelsim and 32 bits
+# Set MODEL_TECH if absent
 #------------------------------------------------------
 
 # Get OS type
 OSTYPE             = $(shell uname)
 
 # If run from a place where MODEL_TECH is not defined, construct from path to PLI library
-ifeq ("${MODEL_TECH}", "")
-  ifeq (${OSTYPE}, Linux)
+ifeq ("$(MODEL_TECH)", "")
+  ifeq ($(OSTYPE), Linux)
     PLILIB         = libmtipli.so
   else
     PLILIB         = mtipli.dll
   endif
   
   VSIMPATH         = $(shell which vsim)
-  SIMROOT          = $(shell dirname ${VSIMPATH})/..
-  PLILIBPATH       = $(shell find ${SIMROOT} -name "${PLILIB}")
-  MODEL_TECH       = $(shell dirname ${PLILIBPATH})
-endif
-
-ifeq ($(findstring questa, $(subst  _, , $(subst  /, , ${MODEL_TECH}))), questa)
-  ARCH=-m64
-else
-  ARCH=-m32
+  SIMROOT          = $(shell dirname $(VSIMPATH))/..
+  PLILIBPATH       = $(shell find $(SIMROOT) -name "$(PLILIB)")
+  MODEL_TECH       = $(shell dirname $(PLILIBPATH))
 endif
 
 #------------------------------------------------------
@@ -90,18 +84,18 @@ WORKDIR       = work
 #
 # Find any user code header files (if any)
 #
-USRHDRS       = $(wildcard ${USRSRCDIR}/*.h)
+USRHDRS       = $(wildcard $(USRSRCDIR)/*.h)
 
 #
 # Get all the header files for the model source code
 #
-SRCHDRS       = $(wildcard ${SRCDIR}/*.h)
+SRCHDRS       = $(wildcard $(SRCDIR)/*.h)
 
 #
 # Usb C++ auto-generated memory map for Verilog
 # accessible signals and registers
 #
-USBCMAP       = ${USRSRCDIR}/usbMap.h
+USBCMAP       = $(USRSRCDIR)/usbMap.h
 
 #------------------------------------------------------
 # PLI shared object definitions
@@ -112,13 +106,13 @@ USBCMAP       = ${USRSRCDIR}/usbMap.h
 #
 PLI_SO        = VProc.so
 VPROC_LIB     = libvproc.a
-VPROCLIBPATH  = ${VPROC_TOP}/test/${VPROC_LIB}
-USBVLOGMAP    = ${USBVLOGDIR}/usbModel.vh
+VPROCLIBPATH  = $(VPROC_TOP)/test/$(VPROC_LIB)
+USBVLOGMAP    = $(USBVLOGDIR)/usbModel.vh
 
 #
 # All source files (model and user code)
 #
-ALLSRC        = ${SRCDIR}/*.cpp ${PLIDIR}/*.cpp ${USER_CPP:%.cpp=${USRSRCDIR}/%.cpp} ${USBCMAP}
+ALLSRC        = $(SRCDIR)/*.cpp $(PLIDIR)/*.cpp $(USER_CPP:%.cpp=$(USRSRCDIR)/%.cpp) $(USBCMAP)
 
 #------------------------------------------------------
 # Flags for simulator
@@ -126,28 +120,28 @@ ALLSRC        = ${SRCDIR}/*.cpp ${PLIDIR}/*.cpp ${USER_CPP:%.cpp=${USRSRCDIR}/%.
 
 TOP           = test
 TOP_VC        = test.vc
-VSIMFLAGS     = -pli ${PLI_SO} ${TOP}
-VLOGFLAGS     = -quiet -incr +incdir+${VPROC_TOP} +incdir+${USBVLOGDIR} -f ${TOP_VC}
+VSIMFLAGS     = -pli $(PLI_SO) $(TOP)
+VLOGFLAGS     = -quiet -incr +incdir+$(VPROC_TOP) +incdir+$(USBVLOGDIR) -f $(TOP_VC)
 
 #------------------------------------------------------
 # Flags for C compiler
 #------------------------------------------------------
 CC            = gcc
 C++           = g++
-CFLAGS        = ${ARCH} -fPIC                    \
+CFLAGS        = $(ARCHFLAG) -fPIC                \
                 -Wno-write-strings               \
-                -I${SRCDIR}                      \
-                -I${PLIDIR}                      \
-                -I${USRSRCDIR}                   \
-                -I${VPROC_TOP}/code              \
-                -I${MODEL_TECH}/../include       \
-                ${USRFLAGS}
+                -I$(SRCDIR)                      \
+                -I$(PLIDIR)                      \
+                -I$(USRSRCDIR)                   \
+                -I$(VPROC_TOP)/code              \
+                -I$(MODEL_TECH)/../include       \
+                $(USRFLAGS)
 
 # Get OS type
 OSTYPE       :=$(shell uname)
 
 # Set OS specific variables between Linux and Windows (MinGW)
-ifeq (${OSTYPE}, Linux)
+ifeq ($(OSTYPE), Linux)
   CFLAGS_SO   = -shared -lpthread -lrt -rdynamic -Wno-format-truncation
 else
   CFLAGS_SO   = -shared -Wl,-export-all-symbols
@@ -163,7 +157,7 @@ CPPSTD        = -std=c+11
 #
 # Build the verilog and the PLI shared object by default
 #
-all: ${PLI_SO} verilog
+all: $(PLI_SO) verilog
 
 #
 # Check that the MODEL_TECH environment variable is defined
@@ -179,21 +173,21 @@ endif
 #
 .PHONY: verilog
 verilog:
-	@if [ ! -d ${WORKDIR} ]; then                \
-	  vlib ${WORKDIR};                           \
+	@if [ ! -d $(WORKDIR) ]; then                \
+	  vlib $(WORKDIR);                           \
     fi
-	@vlog ${VLOGFLAGS}
+	@vlog $(VLOGFLAGS)
 
 #
 # PLI shared object
 #
-${PLI_SO}: checkenv ${VPROCLIBPATH} ${ALLSRC} ${SRCHDRS} ${USRHDRS}
-	@${C++} ${CFLAGS_SO} ${CFLAGS}               \
+$(PLI_SO): checkenv $(VPROCLIBPATH) $(ALLSRC) $(SRCHDRS) $(USRHDRS)
+	@$(C++) $(CFLAGS_SO) $(CFLAGS)               \
 	       -Wl,-whole-archive                    \
- 	       ${VPROCLIBPATH}                       \
-           ${ALLSRC}                             \
+ 	       $(VPROCLIBPATH)                       \
+           $(ALLSRC)                             \
            -lpthread                             \
-           -L${MODEL_TECH}                       \
+           -L$(MODEL_TECH)                       \
            -lmtipli                              \
 	       -Wl,-no-whole-archive                 \
 	       -o $@
@@ -201,43 +195,43 @@ ${PLI_SO}: checkenv ${VPROCLIBPATH} ${ALLSRC} ${SRCHDRS} ${USRHDRS}
 #
 # VProc library.
 #
-${VPROCLIBPATH}: ${VPROC_TOP}
-	@${MAKE} --no-print-directory -C ${VPROC_TOP}/test MAX_NUM_VPROC=${NUM_VPROC} ARCHFLAG=${ARCH} USER_C="" ${VPROC_LIB}
+$(VPROCLIBPATH): $(VPROC_TOP)
+	@$(MAKE) --no-print-directory -C $(VPROC_TOP)/test MAX_NUM_VPROC=$(NUM_VPROC) ARCHFLAG=$(ARCHFLAG) USER_C="" $(VPROC_LIB)
 
 #
 # Checkout VProc from github if it doesn't exist at the specified location
 #
-${VPROC_TOP}:
-	@git clone ${VPROC_REPO} ${VPROC_TOP} --recursive
+$(VPROC_TOP):
+	@git clone $(VPROC_REPO) $(VPROC_TOP) --recursive
 
 #
 # Auto-generate the C++ header from the Verilog header so they always match
 #
-${USBCMAP}: ${USBVLOGMAP}
+$(USBCMAP): $(USBVLOGMAP)
 	@sed -e 's/`/#/g' -e 's/_USB_VH_/_USB_MAP_H_/g' < $^ > $@
 
 #------------------------------------------------------
 # EXECUTION RULES
 #------------------------------------------------------
 
-run: ${VPROCLIBPATH} verilog ${PLI_SO}
-	@vsim -c -GGUI_RUN=0 ${VSIMFLAGS} -do "run -all"
+run: $(VPROCLIBPATH) verilog $(PLI_SO)
+	@vsim -c -GGUI_RUN=0 $(VSIMFLAGS) -do "run -all"
 
-sim: ${VPROCLIBPATH} verilog ${PLI_SO}
-	@vsim -c -GGUI_RUN=0 ${VSIMFLAGS}
+sim: $(VPROCLIBPATH) verilog $(PLI_SO)
+	@vsim -c -GGUI_RUN=0 $(VSIMFLAGS)
 
-rungui: ${VPROCLIBPATH} verilog ${PLI_SO}
+rungui: $(VPROCLIBPATH) verilog $(PLI_SO)
 	@if [ -e wave.do ]; then                                                \
-         vsim -gui -GGUI_RUN=1 -do wave.do ${VSIMFLAGS} -do "run -all";     \
+         vsim -gui -GGUI_RUN=1 -do wave.do $(VSIMFLAGS) -do "run -all";     \
      else                                                                   \
-         vsim -gui -GGUI_RUN=1 ${VSIMFLAGS};                                \
+         vsim -gui -GGUI_RUN=1 $(VSIMFLAGS);                                \
      fi
 
-simgui: ${VPROCLIBPATH} verilog ${PLI_SO}
+simgui: $(VPROCLIBPATH) verilog $(PLI_SO)
 	@if [ -e wave.do ]; then                                                \
-         vsim -gui -GGUI_RUN=1 -do wave.do ${VSIMFLAGS};                    \
+         vsim -gui -GGUI_RUN=1 -do wave.do $(VSIMFLAGS);                    \
      else                                                                   \
-         vsim -gui -GGUI_RUN=1 ${VSIMFLAGS};                                \
+         vsim -gui -GGUI_RUN=1 $(VSIMFLAGS);                                \
      fi
 
 gui: rungui
@@ -254,11 +248,11 @@ help:
 # CLEANING RULES
 #------------------------------------------------------
 
-clean: ${VPROC_TOP}
-	@if [ -d "${WORKDIR}" ]; then                \
+clean: $(VPROC_TOP)
+	@if [ -d "$(WORKDIR)" ]; then                \
 	  vdel -all;                                 \
      fi
-	@${MAKE} --no-print-directory -C ${VPROC_TOP}/test clean
-	@rm -rf ${PLI_SO} ${USBCMAP} *.wlf transcript work
+	@$(MAKE) --no-print-directory -C $(VPROC_TOP)/test clean
+	@rm -rf $(PLI_SO) $(USBCMAP) *.wlf transcript work
 
 
