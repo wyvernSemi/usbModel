@@ -1,0 +1,238 @@
+###################################################################
+# Makefile for Virtual USB code in Verilator
+#
+# Copyright (c) 2024 Simon Southwell.
+#
+# This file is part of usbModel pattern generator.
+#
+# This code is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# The code is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this code. If not, see <http://www.gnu.org/licenses/>.
+#
+###################################################################
+
+#------------------------------------------------------
+# User modifiable flags
+
+USRFLAGS      = -DUSBTESTMODE
+USRSIMFLAGS   =
+WAVESAVEFILE  = waves.gtkw
+WAVEFILE      = waves.vcd
+
+# Set to -GFINISH=1 for $finish at execution end, or blank for $stop
+# (Verilator generates an error on $stop)
+FINISHFLAG    = -GGUI_RUN=0
+
+# Set to --timing for delta cycle support, or -GDISABLE_DELTA for no delta-cycle
+TIMINGFLAG    = --timing
+
+# set to -GVCD_DUMP=1 to generate VCD ouput, or blank for none
+VCDFLAG       = -GVCD_DUMP=1
+
+# Set to +define+VPROC_BURST_IF for burst interface, or blank for none
+BURSTDEF      =
+
+# Set blank to disable tracing (needed for VCD generation)
+TRACEFLAG     = --trace
+
+#------------------------------------------------------
+# Definitions for VProc virtual processor USB model
+#------------------------------------------------------
+
+ARCHFLAG      = -m64
+MAKE_EXE      = make
+TESTDIR       = $(PWD)
+
+#
+# Only need two virtual processor nodes
+#
+NUM_VPROC     = 2
+
+#
+# Location of VProc directory. Assumes in same directory as usbModel repository.
+# Update/override if located elsewhere.
+#
+VPROC_TOP     = ../../../../vproc
+
+#
+# Define the github repository URL for the VProc virtual processor
+#
+VPROC_REPO    = https://github.com/wyvernSemi/vproc.git
+
+#
+# USB VHost test definitions
+#
+USBVLOGDIR    = ../src
+SRCDIR        = ../../src
+WORKDIR       = work
+
+#
+# Get all the header files for the model source code
+#
+SRCHDRS       = $(wildcard $(SRCDIR)/*.h)
+
+#
+# Get OS type
+#
+OSTYPE       := $(shell uname)
+
+ifeq ($(OSTYPE), Linux)
+  SIMLDFLAGS  = -Wl,-E -lrt -rdynamic
+else
+  SIMLDFLAGS  = -Wl,-export-all-symbols
+endif
+
+#------------------------------------------------------
+# User code definitions (non-modifiable)
+#------------------------------------------------------
+
+USRSRCDIR     = usercode
+USER_CPP      = VUserMain0.cpp                         \
+                VUserMain1.cpp
+
+#
+# User code compilation flags
+#
+USRCFLAGS     = -DUSBTESTMODE -I$(CURDIR)/$(USRSRCDIR) -I$(CURDIR)/$(SRCDIR)
+
+#
+# Find any user code header files (if any)
+#
+USRHDRS       = $(wildcard $(USRSRCDIR)/*.h)
+
+
+#
+# Usb C++ auto-generated memory map for Verilog
+# accessible signals and registers
+#
+USBCMAP       = $(USRSRCDIR)/usbMap.h
+
+#------------------------------------------------------
+# PLI library definitions
+#------------------------------------------------------
+
+#
+# PLI C/C++ code definitions
+#
+VPROC_LIB     = libvproc.a
+VPROCLIBPATH  = $(TESTDIR)/$(VPROC_LIB)
+USBVLOGMAP    = $(USBVLOGDIR)/usbModel.vh
+
+USBCODE       = usbDevice.cpp                          \
+                usbFormat.cpp                          \
+                usbHost.cpp                            \
+                usbPkt.cpp
+
+#
+# All source files (model and user code)
+#
+ALLSRC        = $(USER_CPP) $(USBCMAP)
+
+#------------------------------------------------------
+# Flags for Verilator simulator
+#------------------------------------------------------
+
+SIMTOP        = test
+
+SIMEXE        = work/V$(SIMTOP)
+FILELIST      = files.verilator
+SIMFLAGS      = --binary -sv                           \
+                $(TRACEFLAG)                           \
+                $(FINISHFLAG)                          \
+                $(TIMINGFLAG)                          \
+                $(VCDFLAG) $(BURSTDEF)                 \
+                $(USRSIMFLAGS)                         \
+                +incdir+../src                         \
+                -Mdir work -I$(VPROC_TOP) -Wno-WIDTH   \
+                --top $(SIMTOP)                        \
+                -MAKEFLAGS "--quiet"                   \
+                -CFLAGS "$(CPPSTD) -Wno-attributes"    \
+                -LDFLAGS "$(SIMLDFLAGS)                \
+                -Wl,-whole-archive -L../ -lvproc -Wl,-no-whole-archive -ldl"
+
+#------------------------------------------------------
+# BUILD RULES
+#------------------------------------------------------
+
+#
+# Build the verilog and the PLI shared object by default
+#
+all: $(VPROC_LIB) verilog
+
+#
+# VProc library.
+#
+$(VPROC_LIB): $(VPROC_TOP) $(ALLSRC:%.cpp=$(USRSRCDIR)/%.cpp) $(SRCHDRS) $(USRHDRS)
+	@$(MAKE) --no-print-directory                      \
+             -f makefile.verilator                     \
+             -C $(VPROC_TOP)/test                      \
+             MAX_NUM_VPROC=$(NUM_VPROC)                \
+             TESTDIR=$(TESTDIR)                        \
+             ARCHFLAG=$(ARCHFLAG)                      \
+             USRFLAGS="$(USRCFLAGS)"                   \
+             USER_C="$(ALLSRC)"                        \
+             USRCDIR=$(CURDIR)/usercode                \
+             MEM_C="$(USBCODE)"                        \
+             MEMMODELDIR="$(CURDIR)/$(SRCDIR)"         \
+             $(VPROCLIBPATH)
+
+#
+# Checkout VProc from github if it doesn't exist at the specified location
+#
+$(VPROC_TOP):
+	@git clone $(VPROC_REPO) $(VPROC_TOP) --recursive
+
+#
+# Auto-generate the C++ header from the Verilog header so they always match
+#
+$(USBCMAP): $(USBVLOGMAP)
+	@sed -e 's/`/#/g' -e 's/_USB_VH_/_USB_MAP_H_/g' < $^ > $@
+
+# Analyse SystemVerilog files
+.PHONY: verilog
+verilog: $(VPROC_LIB)
+	verilator -F $(FILELIST) $(SIMFLAGS)
+
+#------------------------------------------------------
+# EXECUTION RULES
+#------------------------------------------------------
+
+run: all
+	$(SIMEXE)
+
+rungui: all
+	@$(SIMEXE)
+	@if [ -e $(WAVESAVEFILE) ]; then                   \
+	    gtkwave -a $(WAVESAVEFILE) $(WAVEFILE);        \
+	else                                               \
+	    gtkwave $(WAVEFILE);                           \
+	fi
+
+gui: rungui
+
+.SILENT:
+help:
+	@$(info make help          Display this message)
+	@$(info make               Build C/C++ and HDL code without running simulation)
+	@$(info make run           Build and run batch simulation)
+	@$(info make rungui/gui    Build and run GUI simulation)
+	@$(info make clean         clean previous build artefacts)
+
+#------------------------------------------------------
+# CLEANING RULES
+#------------------------------------------------------
+
+clean: $(VPROC_TOP)
+	@$(MAKE) -f makefile.verilator --no-print-directory -C $(VPROC_TOP)/test clean
+	@rm -rf $(VPROC_LIB) $(USBCMAP) obj work
+
+

@@ -1,7 +1,7 @@
 // =============================================================
 // Virtual USB component
 //
-// Copyright (c) 2023 Simon Southwell.
+// Copyright (c) 2023, 2024 Simon Southwell.
 //
 // This file is part of usbModel pattern generator.
 //
@@ -31,11 +31,16 @@ module usbModel
              parameter GUI_RUN   = 0   // Flag whether running in a GUI (1) or not (0)
             )
             (
-             input clk,
-             input nreset,
+             input  clk,
+             input  nreset,
 
-             inout linep,
-             inout linem
+`ifdef VERILATOR
+             output enpull,
+`endif
+
+
+             inout  linep,
+             inout  linem
             );
 
 // --------------------------------
@@ -72,6 +77,7 @@ wire         doen;
 // Speed pullup control. Device side pullup can be disconnected in highspeed mode,
 // after chirp negotiation and switch to HS, to balance line.
 
+`ifndef VERILATOR
 // Device side pullup control (explicit 1'b1/1'b0 for Icarus verilog)
 assign (pull1, highz0) linep   = (DEVICE &&  FULLSPEED  && !nopullup) ? 1'b1 : 1'b0;
 assign (pull1, highz0) linem   = (DEVICE && !FULLSPEED  && !nopullup) ? 1'b1 : 1'b0;
@@ -80,11 +86,20 @@ assign (pull1, highz0) linem   = (DEVICE && !FULLSPEED  && !nopullup) ? 1'b1 : 1
 assign (highz1, weak0) linep   = (DEVICE || (nopullup)) ? 1'b1 : 1'b0;
 assign (highz1, weak0) linem   = (DEVICE || (nopullup)) ? 1'b1 : 1'b0;
 
-assign #1 doen                 = oen;
+`else
+
+// In Verilator, have to resolve pullups/pulldonws externally, as port will
+// always resolve to a hard value. So export signal to enable pullup externally.
+assign enpull                  = !nopullup;
+
+`endif
 
 // USB line driver logic
 assign linep                   = (doen & oen) ? dp : 1'bZ;
 assign linem                   = (doen & oen) ? dm : 1'bZ;
+
+assign #1 doen                 = oen;
+
 
 // --------------------------------
 // Initial process

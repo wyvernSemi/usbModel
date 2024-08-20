@@ -1,6 +1,6 @@
 //=============================================================
 //
-// Copyright (c) 2023 Simon Southwell. All rights reserved.
+// Copyright (c) 2023, 2024 Simon Southwell. All rights reserved.
 //
 // Date: 29th October 2023
 //
@@ -41,10 +41,18 @@ localparam TIMEOUT_COUNT   = CLK_PERIOD_MHZ * TIMEOUT_US;
 
 reg     clk;
 integer count;
-wire    d[1:0];
+wire    dp, dm;
 
 // Generate an active low reset
 wire    nreset = (count >= 10) ? 1'b1 : 1'b0;
+
+`ifdef VERILATOR
+wire    enpull;
+
+// In verilator, pullup dp line (for FULLSPEED mode) when pullup enabled
+assign (pull1, pull0) dp = enpull ? 1'b1 : 1'bZ;
+
+`endif
 
 // Initialise state and generate a clock
 initial
@@ -56,8 +64,9 @@ begin
       $dumpfile("waves.vcd");
       $dumpvars(0, test);
     end
-
+`ifndef VERILATOR
     #0                  // Ensure first x->1 clock edge is complete before initialisation
+`endif
     count = 0;
     
     // Stop the simulation when debugging to allow a debugger to connect
@@ -96,9 +105,13 @@ end
         (
         .clk         (clk),
         .nreset      (nreset),
+        
+`ifdef VERILATOR
+        .enpull      (),
+`endif
 
-        .linep       (d[0]),
-        .linem       (d[1])
+        .linep       (dp),
+        .linem       (dm)
         );
 
   // ----------------------------
@@ -114,9 +127,13 @@ end
         (
         .clk         (clk),
         .nreset      (nreset),
+        
+ `ifdef VERILATOR
+        .enpull      (enpull),
+`endif
 
-        .linep       (d[0]),
-        .linem       (d[1])
+        .linep       (dp),
+        .linem       (dm)
         );
 
 
