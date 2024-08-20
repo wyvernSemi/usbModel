@@ -1,0 +1,198 @@
+###################################################################
+# Makefile for Virtual USB code in Vivado
+#
+# Copyright (c) 2024 Simon Southwell.
+#
+# This file is part of usbModel pattern generator.
+#
+# This code is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# The code is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this code. If not, see <http://www.gnu.org/licenses/>.
+#
+###################################################################
+
+#------------------------------------------------------
+# User modifiable flags
+#------------------------------------------------------
+
+USRSRCDIR     = usercode
+USERCODE      = VUserMain0.cpp VUserMain1.cpp
+USRFLAGS      = -DUSBTESTMODE
+
+#------------------------------------------------------
+# Definitions for VProc virtual processor
+#------------------------------------------------------
+
+ARCHFLAG      = -m64
+MAKE_EXE      = make
+
+#
+# Only need two virtual processor nodes for this test
+#
+NUM_VPROC     = 2
+
+#
+# Location of VProc directory. Assumes in same directory as usbModel repository.
+# Update/override if located elsewhere.
+#
+VPROC_TOP     = ../../../../vproc
+
+#
+# Define the github repository URL for the VProc virtual processor
+#
+VPROC_REPO    = https://github.com/wyvernSemi/vproc.git
+
+#
+# USB VHost test definitions
+#
+USBVLOGDIR    = ../src
+SRCDIR        = ../../src
+
+#------------------------------------------------------
+# User code definitions (non-modifiable)
+#------------------------------------------------------
+
+#
+# Find any user code header files (if any)
+#
+USRHDRS       = $(wildcard $(USRSRCDIR)/*.h)
+
+#
+# Get all the header files for the model source code
+#
+SRCHDRS       = $(wildcard $(SRCDIR)/*.h)
+
+#
+# Usb C++ auto-generated memory map for Verilog
+# accessible signals and registers
+#
+USBCMAP       = $(USRSRCDIR)/usbMap.h
+
+#
+# USB model code
+#
+USBCODE       = usbDevice.cpp                          \
+                usbFormat.cpp                          \
+                usbHost.cpp                            \
+                usbPkt.cpp
+
+#
+# Include paths
+#
+INCLFLAGS     = -I$(CURDIR)/$(SRCDIR) -I$(CURDIR)/$(USRSRCDIR)
+
+#------------------------------------------------------
+# PLI shared object definitions
+#------------------------------------------------------
+
+#
+# PLI C/C++ code definitions
+#
+VPROC         = VProc.so
+USBVLOGMAP    = $(USBVLOGDIR)/usbModel.vh
+
+#
+# All source files (model and user code) for VPROC dependencies
+#
+ALLSRC        =  $(USBCODE:%.cpp=$(SRCDIR)/%.cpp) $(SRCHDRS) $(USER_CPP:%.cpp=$(USRSRCDIR)/%.cpp) $(USRHDRS) $(USBCMAP)
+
+#------------------------------------------------------
+# Flags for simulator
+#------------------------------------------------------
+
+SIMEXE        = xsim
+SIMTOP        = test
+
+# Flags for xsim
+ANALYSEFLAGS  = -i ../ --prj files.prj
+ELABFLAGS     = -sv_lib $(VPROC) --debug typical $(SIMTOP)
+SIMFLAGS      = $(SIMTOP)
+
+#------------------------------------------------------
+# BUILD RULES
+#------------------------------------------------------
+
+.PHONY: all, sysverilog, vproc
+
+#
+# Build the verilog and the PLI shared object by default
+#
+all: sysverilog
+
+
+# Analyse HDL files
+sysverilog: vproc
+	@xvlog $(ANALYSEFLAGS)
+	@xelab $(ELABFLAGS)
+
+#
+# PLI shared object
+#
+vproc: $(USBCMAP) $(VPROC_TOP) $(ALLSRC)
+	@$(MAKE_EXE) --no-print-directory                  \
+                 -f makefile.vivado                    \
+                 -C $(VPROC_TOP)/test                  \
+                 $(MAKEFILEARG)                        \
+                 MAX_NUM_VPROC=$(NUM_VPROC)            \
+                 USRFLAGS="$(USRFLAGS) $(INCLFLAGS)"   \
+                 USRCDIR=$(CURDIR)/$(USRSRCDIR)        \
+                 USER_C="$(USERCODE)"                  \
+                 MEMMODELDIR="$(CURDIR)/$(SRCDIR)"     \
+                 MEM_C="$(USBCODE)"                    \
+                 TESTDIR=$(CURDIR)                     \
+                 $(CURDIR)/$(VPROC)
+
+#
+# Checkout VProc from github if it doesn't exist at the specified location
+#
+$(VPROC_TOP):
+	@git clone $(VPROC_REPO) $(VPROC_TOP) --recursive
+
+#
+# Auto-generate the C++ header from the Verilog header so they always match
+#
+$(USBCMAP): $(USBVLOGMAP)
+	@sed -e 's/`/#/g' -e 's/_USB_VH_/_USB_MAP_H_/g' < $^ > $@
+
+#------------------------------------------------------
+# EXECUTION RULES
+#------------------------------------------------------
+
+sim: all
+	@$(SIMEXE) $(SIMFLAGS)
+
+run: all
+	@$(SIMEXE) -R $(SIMFLAGS)
+ 
+rungui: all
+	@$(SIMEXE) -g --autoloadwcfg $(SIMFLAGS)
+
+gui: rungui
+
+#.SILENT:
+help:
+	@$(info make help          Display this message)
+	@$(info make               Build C/C++ and HDL code without running simulation)
+	@$(info make sim           Build and run command line interactive (sim not started))
+	@$(info make run           Build and run batch simulation)
+	@$(info make rungui/gui    Build and run GUI simulation (sim not started))
+	@$(info make clean         clean previous build artefacts)
+
+#------------------------------------------------------
+# CLEANING RULES
+#------------------------------------------------------
+
+clean: $(VPROC_TOP)
+	@$(MAKE_EXE) --no-print-directory -f makefile.vivado -C $(VPROC_TOP)/test USER_C="$(USERCODE)" TESTDIR="$(CURDIR)" clean
+	@rm -rf $(USBCMAP) $(VPROC) $(VPROC_PLI) $(VLIB) $(VOBJDIR) xsim* vivado* *.wdb xelab.* xvlog.* .Xilclean 
+
+
