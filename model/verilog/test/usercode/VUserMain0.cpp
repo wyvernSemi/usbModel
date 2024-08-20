@@ -50,11 +50,16 @@ extern "C" void VUserMain0()
     uint8_t              addr = 0;
     uint8_t              endp = 0;
     uint16_t             rxlen;
+    char                 version[80];
 
     usbModel::deviceDesc devdesc;
 
     // Create host interface object to usbModel
     usbHost host(node);
+    
+    host.usbGetVersionStr(version);
+    
+    VPrint("  usbModel version %s\n", version);
 
     // Wait for a bit
     host.usbHostSleepUs(10);
