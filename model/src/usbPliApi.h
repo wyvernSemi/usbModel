@@ -40,6 +40,10 @@ extern "C"
 class usbPliApi
 {
 public:
+    static const int major_ver       = 1;
+    static const int minor_ver       = 0;
+    static const int patch_ver       = 0;
+    
     static const int ONE_US          = 12;
     static const int ONE_MS          = ONE_US * 1000;
 
@@ -77,6 +81,11 @@ public:
 
     usbPliApi(const int nodeIn, std::string name = std::string("DEV ")) : node(nodeIn)
     {
+    }
+    
+    void usbGetVersionStr(char *vstr, unsigned len = 12)
+    {
+        snprintf(vstr, len, "%d.%d.%d", major_ver, minor_ver, patch_ver);
     }
 
 protected:
