@@ -102,7 +102,7 @@ USER_CPP      = VUserMain0.cpp                         \
 #
 # User code compilation flags
 #
-USRCFLAGS     = -DUSBTESTMODE -I$(CURDIR)/$(USRSRCDIR) -I$(CURDIR)/$(SRCDIR)
+USRCFLAGS     = -DUSBTESTMODE -I$(CURDIR)/$(USRSRCDIR) -I$(CURDIR)/$(SRCDIR) -Wno-format-truncation
 
 #
 # Find any user code header files (if any)
@@ -155,7 +155,7 @@ SIMFLAGS      = --binary -sv                           \
                 -Mdir work -I$(VPROC_TOP) -Wno-WIDTH   \
                 --top $(SIMTOP)                        \
                 -MAKEFLAGS "--quiet"                   \
-                -CFLAGS "$(CPPSTD) -Wno-attributes"    \
+                -CFLAGS "$(CPPSTD) -Wno-attributes -Wno-format-truncation"    \
                 -LDFLAGS "$(SIMLDFLAGS)                \
                 -Wl,-whole-archive -L../ -lvproc -Wl,-no-whole-archive -ldl"
 
