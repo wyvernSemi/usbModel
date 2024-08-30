@@ -1,0 +1,153 @@
+###################################################################
+# Makefile for usbModel test bench for Questa logic simulator
+#
+# Copyright (c) 2024 Simon Southwell.
+#
+# This file is part of tcpIpPg.
+#
+# This file is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# The file is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this file. If not, see <http://www.gnu.org/licenses/>.
+#
+###################################################################
+
+#------------------------------------------------------
+# User overridable definitions
+#------------------------------------------------------
+
+MAKEFILEARG        =
+ARCHFLAG           = -m64
+
+#------------------------------------------------------
+# Internal variables
+#------------------------------------------------------
+
+# User files to build, passed into vproc makefile build
+USERCODE           = VUserMain0.cpp \
+                     VUserMain1.cpp
+
+USBCODE            = usbDevice.cpp  \
+                     usbHost.cpp    \
+                     usbFormat.cpp  \
+                     usbPkt.cpp
+
+USRCDIR            = $(CURDIR)/usercode
+USBCDIR            = $(CURDIR)/../../src
+
+ALLSRC             = $(USERCODE:%.cpp=$(USRCDIR)/%.cpp) $(USBCODE:%.cpp=$(USBCDIR)/%.cpp) $(USBCDIR)/*.h
+
+# Set up Variables for tools
+MAKE_EXE           = make
+
+# VProc location, relative to this directory
+VPROC_TOP          = ../../../../vproc
+PLI_SO             = VProc.so
+VLIB               = $(CURDIR)/$(PLI_SO)
+
+# Define the github repository URL for the VProc virtual processor
+VPROC_REPO         = https://github.com/wyvernSemi/vproc.git
+
+USRCFLAGS          = -I$(CURDIR)/../../src -DUSBTESTMODE
+
+#
+# Usb C++ auto-generated memory map for Verilog
+# accessible signals and registers
+#
+USBVLOGDIR         = ../../verilog/src
+USBCMAP            = $(USRCDIR)/usbMap.h
+USBVLOGMAP         = $(USBVLOGDIR)/usbModel.vh
+
+#------------------------------------------------------
+# Flags for simulator
+#------------------------------------------------------
+
+SIMTOP             = test
+WAVEFILE           = waves.fst
+WAVESAVEFILE       = $(WAVEFILE:%.fst=%.gtkw)
+SIMEXE             = nvc
+SIMFLAGS           = --ieee-warnings=off                    \
+                     --format=fst --wave=$(WAVEFILE)        \
+                     --load=$(PLI_SO)                       \
+                     $(SIMTOP)
+
+#------------------------------------------------------
+# BUILD RULES
+#------------------------------------------------------
+
+.PHONY : vhdl, vproc, all, run, rungui, gui, help, clean
+
+# Build is dependant on processing makefile in vproc and riscV/iss
+all: vproc vhdl
+
+# Call the vproc make file for it to determine if anything
+# needs building.
+vproc: $(USBCMAP) $(VPROC_TOP) $(ALLSRC)
+	@$(MAKE_EXE) --no-print-directory              \
+                 -C $(VPROC_TOP)/test              \
+                 -f makefile.nvc                   \
+                 $(MAKEFILEARG)                    \
+                 USRFLAGS="$(USRCFLAGS)"           \
+                 USRCDIR=$(USRCDIR)                \
+                 USER_C="$(USERCODE)"              \
+                 MEM_C="$(USBCODE)"                \
+                 MEMMODELDIR="$(USBCDIR)"          \
+                 TESTDIR=$(CURDIR)                 \
+                 $(VLIB)
+
+#
+# Checkout VProc from github if it doesn't exist at the specified location
+#
+$(VPROC_TOP):
+	@git clone $(VPROC_REPO) $(VPROC_TOP) --recursive
+
+#
+# Auto-generate the C++ header from the Verilog header so they always match
+#
+$(USBCMAP): $(USBVLOGMAP)
+	@sed -e 's/`/#/g' -e 's/_USB_VH_/_USB_MAP_H_/g' < $^ > $@
+
+
+# Analyse HDL files
+vhdl: vproc
+	@$(SIMEXE) --std=08 -a -f files_nvc.tcl -e $(SIMTOP)
+
+#------------------------------------------------------
+# EXECUTION RULES
+#------------------------------------------------------
+
+run: all
+	@$(SIMEXE) -r $(SIMFLAGS)
+
+rungui: all
+	@$(SIMEXE) -r  $(SIMFLAGS)
+	@if [ -e $(WAVESAVEFILE) ]; then                       \
+	    gtkwave -A $(WAVEFILE);                            \
+	else                                                   \
+	    gtkwave $(WAVEFILE);                               \
+	fi
+
+gui: rungui
+
+help:
+	@$(info make help          Display this message)
+	@$(info make               Build C/C++ and HDL code without running simulation)
+	@$(info make run           Build and run batch simulation)
+	@$(info make rungui/gui    Build and run GUI simulation (sim not started))
+	@$(info make clean         clean previous build artefacts)
+
+#------------------------------------------------------
+# CLEANING RULES
+#------------------------------------------------------
+
+clean: $(VPROC_TOP)
+	@$(MAKE_EXE) --no-print-directory -f makefile.nvc -C $(VPROC_TOP)/test USER_C="$(USERCODE)" TESTDIR="$(CURDIR)" clean
+	@rm -rf $(VPROC_PLI) $(VLIB) $(VOBJDIR) waves.fst work $(USBCMAP)
