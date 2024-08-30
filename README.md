@@ -1,6 +1,6 @@
 # usbModel
 
-The usbModel is a software model of both a USB host and device to standard USB 1.1, with hooks for USB 2.0 enhancements. Each model can be used independently, with the host model a generic implementation, and the device model an example of a specific communications device class (CDC) implementation. The models have been integrated with the [VProc Virtual Processor](https://github.com/wyvernSemi/vproc) to drive USB signals in a Verilog simulation, with scripts for running on ModelSim. This allows the model to be used to drive device, hub, and host logic implementations.
+The usbModel is a software model of both a USB host and device to standard USB 1.1, with hooks for USB 2.0 enhancements. Each model can be used independently, with the host model a generic implementation, and the device model an example of a specific communications device class (CDC) implementation. The models have been integrated with the [VProc Virtual Processor](https://github.com/wyvernSemi/vproc) to drive USB signals in a Verilog or VHDL simulation, with scripts for running on various open-source (Icarus, Verilator, NVC, GHDL) and commercial (Questa/ModelSim, Vivado) simulators. This allows the model to be used to drive device, hub, and host logic implementations.
 
 <img src="https://github.com/wyvernSemi/usbModel/assets/21970031/41ae5119-1ca6-44ed-bc0c-f7b76ad2d5cc" width=800>
 
