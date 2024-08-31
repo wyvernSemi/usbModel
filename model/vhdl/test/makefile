@@ -137,7 +137,7 @@ vproc: checkenv $(USBCMAP) $(VPROC_TOP)
 # Checkout VProc from github if it doesn't exist at the specified location
 #
 $(VPROC_TOP):
-	git clone $(VPROC_REPO) $(VPROC_TOP) --recursive
+	@git clone $(VPROC_REPO) $(VPROC_TOP) --recursive
 
 #
 # Auto-generate the C++ header from the Verilog header so they always match
@@ -178,5 +178,5 @@ help:
 
 clean: $(VPROC_TOP)
 	@$(MAKE_EXE) --no-print-directory -C $(VPROC_TOP)/test USER_C="$(USERCODE)" TESTDIR="$(CURDIR)" clean
-	@vsim -c -do cleanvlib.do -do quit
+	@vsim -c -do cleanvlib.do -do quit 2>&1 > /dev/null
 	@rm -rf transcript *wlf*
