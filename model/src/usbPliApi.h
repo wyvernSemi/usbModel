@@ -42,7 +42,7 @@ class usbPliApi
 public:
     static const int major_ver       = 1;
     static const int minor_ver       = 1;
-    static const int patch_ver       = 1;
+    static const int patch_ver       = 2;
     
     static const int ONE_US          = 12;
     static const int ONE_MS          = ONE_US * 1000;

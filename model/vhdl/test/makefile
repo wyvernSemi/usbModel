@@ -54,7 +54,7 @@ VPROC_TOP          = ../../../../vproc
 # Define the github repository URL for the VProc virtual processor
 VPROC_REPO         = https://github.com/wyvernSemi/vproc.git
 
-USRCFLAGS          = -I$(CURDIR)/../../src -DUSBTESTMODE
+USRCFLAGS          = -I$(CURDIR)/../../src -DUSBTESTMODE -Wno-format-truncation
 
 #
 # Usb C++ auto-generated memory map for Verilog
