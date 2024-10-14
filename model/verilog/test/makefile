@@ -73,7 +73,6 @@ VPROC_REPO    = https://github.com/wyvernSemi/vproc.git
 # USB VHost test definitions
 #
 USBVLOGDIR    = ../src
-PLIDIR        = ../pli
 SRCDIR        = ../../src
 WORKDIR       = work
 
@@ -112,7 +111,7 @@ USBVLOGMAP    = $(USBVLOGDIR)/usbModel.vh
 #
 # All source files (model and user code)
 #
-ALLSRC        = $(SRCDIR)/*.cpp $(PLIDIR)/*.cpp $(USER_CPP:%.cpp=$(USRSRCDIR)/%.cpp) $(USBCMAP)
+ALLSRC        = $(SRCDIR)/*.cpp $(USER_CPP:%.cpp=$(USRSRCDIR)/%.cpp) $(USBCMAP)
 
 #------------------------------------------------------
 # Flags for simulator
@@ -131,7 +130,6 @@ C++           = g++
 CFLAGS        = $(ARCHFLAG) -fPIC                \
                 -Wno-write-strings               \
                 -I$(SRCDIR)                      \
-                -I$(PLIDIR)                      \
                 -I$(USRSRCDIR)                   \
                 -I$(VPROC_TOP)/code              \
                 -I$(MODEL_TECH)/../include       \

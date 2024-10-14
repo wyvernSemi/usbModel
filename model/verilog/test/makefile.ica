@@ -26,7 +26,6 @@
 USRFLAGS      = -DUSBTESTMODE
 USRSRCDIR     = usercode
 USER_CPP      = VUserMain0.cpp VUserMain1.cpp
-PLIFLAG       = -DVPROC_PLI_VPI
 
 #------------------------------------------------------
 # Definitions for VProc virtual processor
@@ -52,7 +51,6 @@ VPROC_REPO    = https://github.com/wyvernSemi/vproc.git
 # USB VHost test definitions
 #
 USBVLOGDIR    = ../src
-PLIDIR        = ../pli
 SRCDIR        = ../../src
 WORKDIR       = work
 
@@ -91,7 +89,7 @@ USBVLOGMAP    = ${USBVLOGDIR}/usbModel.vh
 #
 # All source files (model and user code)
 #
-ALLSRC        =  ${USBCMAP} ${SRCDIR}/*.cpp ${PLIDIR}/*.cpp ${USER_CPP:%.cpp=${USRSRCDIR}/%.cpp}
+ALLSRC        =  ${USBCMAP} ${SRCDIR}/*.cpp ${USER_CPP:%.cpp=${USRSRCDIR}/%.cpp}
 
 #------------------------------------------------------
 # Flags for simulator
@@ -123,7 +121,6 @@ ARCH          = -m64
 CFLAGS        = -fPIC                                 \
                 -Wno-write-strings                    \
                 ${ARCHFLAG}                           \
-                ${PLIFLAG}                            \
                 -g                                    \
                 -D_GNU_SOURCE                         \
                 ${USRFLAGS}                           \
@@ -178,7 +175,6 @@ ${VPROCLIBPATH}: ${VPROC_TOP}
              -f makefile.ica                     \
              MAX_NUM_VPROC=${NUM_VPROC}          \
              ARCHFLAG=${ARCH}                    \
-             PLIFLAG=${PLIFLAG}                  \
              USER_C=""                           \
              ${VPROC_LIB}
 
@@ -195,10 +191,10 @@ ${USBCMAP}: ${USBVLOGMAP}
 	@sed -e 's/`/#/g' -e 's/_USB_VH_/_USB_MAP_H_/g' < $^ > $@
 
 verilog: ${VLOGFILES}
-	@iverilog ${VLOGFLAGS} ${PLIFLAG} -o sim ${VLOGFILES}
+	@iverilog ${VLOGFLAGS} -o sim ${VLOGFILES}
 
 verilog_debug: ${VLOGFILES}
-	@iverilog ${VLOGDEBUGFLAGS} ${VLOGFLAGS} ${PLIFLAG} -o sim ${VLOGFILES}
+	@iverilog ${VLOGDEBUGFLAGS} ${VLOGFLAGS} -o sim ${VLOGFILES}
 
 #------------------------------------------------------
 # EXECUTION RULES
