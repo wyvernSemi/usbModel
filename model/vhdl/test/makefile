@@ -81,9 +81,7 @@ ifeq ("$(MODEL_TECH)", "")
   MODEL_TECH       = $(shell dirname $(PLILIBPATH))
 endif
 
-PLI_SO             = VProc.so
-
-# Specify the VPr  oc makefile and .do files to use with simulator
+# Specify the VProc makefile and .do files to use with simulator
 MAKEFILEARG        = HDL=$(HDL)
 SIMDO              = sim_vhdl.do
 SIMGDO             = simg_vhdl.do
@@ -96,7 +94,6 @@ COMPDO             = compile_vhdl.do
 
 TOP           = test
 TOP_VC        = test.vc
-VSIMFLAGS     = -pli $(PLI_SO) $(TOP)
 VHDLFLAGS     = -2008 -f files_vhdl.tcl
 
 #------------------------------------------------------

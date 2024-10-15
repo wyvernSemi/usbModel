@@ -5,7 +5,7 @@ do cleanvlib.do
 do compile_vhdl.do
 
 # Run the tests
-vsim -gGUI_RUN=1 -pli VProc.so -gui test
+vsim -gGUI_RUN=1 -gui test
 set StdArithNoWarnings   1
 set NumericStdNoWarnings 1
 do wave.do
